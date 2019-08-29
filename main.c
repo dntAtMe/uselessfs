@@ -23,7 +23,7 @@ static int do_getattr( const char *path, struct stat *st ) {
 		st->st_mode = __S_IFDIR | 0755;
 		st->st_nlink = 2;
 	} else {
-		printf("[getattr] File found");
+		printf("[getattr] File found\n");
 		st->st_mode = __S_IFREG | 0644;
 		st->st_nlink = 1;
 		st->st_size = 1024;	
