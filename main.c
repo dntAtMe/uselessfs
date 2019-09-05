@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <time.h>
+#include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -13,6 +14,7 @@ static int do_getattr( const char *path, struct stat *st ) {
 	printf("[getattr] Running\n");
 	printf("[getattr] Requested  path:%s\n", path);
 	
+/*
 	st->st_uid = getuid();	
 	st->st_gid = getgid();
 	st->st_atime = time( NULL );
@@ -27,6 +29,14 @@ static int do_getattr( const char *path, struct stat *st ) {
 		st->st_mode = __S_IFREG | 0644;
 		st->st_nlink = 1;
 		st->st_size = 1024;	
+	}
+*/	
+	int res;
+
+	res = lstat(path, st);
+	if (res == -1) {
+		printf("[getattr] -1, Ending\n");
+		return -errno;
 	}
 	
 	printf("[getattr] End\n");
