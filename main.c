@@ -122,8 +122,7 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
     printf("[read] Full path: %s\n", fpath);
     printf("[read] fi->fh: %d\n", fi->fh);
 
-    pread(fi->fh, buffer, size, offset);    
-    return 0;    
+    return pread(fi->fh, buffer, size, offset);    
 //	char file54text[] = "file54";
 //	char file49text[] = "\n\nfile49";	
 //
@@ -137,12 +136,45 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
 //		return -1;
 }
 
+static int do_chmod(const char *path, mode_t mode)
+{
+    char *fpath;
+
+    fpath = xlate(path, src1);
+    return chmod(fpath, mode);
+}
+
+static int do_chown(const char *path, uid_t uid, gid_t gid)
+{
+    char *fpath;
+    
+    fpath = xlate(path, src1);
+    return chown(fpath, uid, gid);
+}
+
+static int do_truncate(const char *path, off_t size)
+{
+    char *fpath;
+
+    fpath = xlate(path, src1);
+    return truncate(fpath, size);
+
+}
+
+static int do_release(const char *path, struct fuse_file_info *fi)
+{
+    printf("[release] Starting\n");
+    close(fi->fh);
+    return 0;
+}
+
 static int do_write(const char *path, const char *buf, size_t size,
 		    off_t offset, struct fuse_file_info *fi)
 {
     printf("[do_write] Running \n");
     printf("[do_write] %s %d\n", path, fi->fh);
 
+    pwrite(fi->fh, buf, size, offset);
 
     return 0;
 }
@@ -153,14 +185,16 @@ static struct fuse_operations operations = {
 	.getattr = do_getattr,
 	.readdir = do_readdir,
 	.read = do_read,
+
+    .open = do_open,
+    .write = do_write,
+    .truncate = do_truncate,
+    .chown = do_chown,
+    .chmod = do_chmod,
+    .flush = NULL,
+    .release = do_release
 };
 
 int main(int argc, char* argv[]) {
 	return fuse_main(argc, argv, &operations, NULL);
 }
-
-
-
-
-
-
