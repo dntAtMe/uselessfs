@@ -1,5 +1,6 @@
 #define FUSE_USE_VERSION 31
 
+#include <dirent.h>
 #include <fuse.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -9,6 +10,26 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+
+char *xlate(const char *fname, char *rpath)
+{
+	char *rname;
+	int   rlen, flen;
+
+	if (!rpath || !fname) {
+		return NULL;
+	}
+
+	rlen = strlen(rpath);
+	flen = strlen(fname);
+	rname = malloc(1 + rlen + flen);
+	if (rname) {
+		strcpy(rname, rpath);
+		strcpy(rname + rlen, fname);
+	}
+	printf("xlate %s\n", rname);
+	return rname;
+}
 
 static int do_getattr( const char *path, struct stat *st ) {
 	printf("[getattr] Running\n");
@@ -32,8 +53,11 @@ static int do_getattr( const char *path, struct stat *st ) {
 	}
 */	
 	int res;
-
-	res = lstat(path, st);
+    	char* fpath;
+	fpath = xlate(path, "/home/dntAtMe/code/fuse/uselessfs/test");
+	printf("[getattr] Full path: %s\n", fpath);
+	
+    res = lstat(fpath, st);
 	if (res == -1) {
 		printf("[getattr] -1, Ending\n");
 		return -errno;
@@ -44,17 +68,45 @@ static int do_getattr( const char *path, struct stat *st ) {
 }
 
 static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct file_fuse_info *fi) {	
-	printf("[readdir] Running\n");
+	DIR *dp = NULL;
+	struct dirent *de;
 	
-	filler(buffer, ".", NULL, 0);
-	filler(buffer, "..", NULL, 0);
+	printf("[readdir] Running\n");
+	printf("[readdir] Requested path: %s\n", path);
+	
+	char* fpath = xlate(path, "/home/dntAtMe/code/fuse/uselessfs/test");
 
-	if(strcmp(path, "/") == 0) {
-		filler(buffer, "file54", NULL, 0);
-		filler(buffer, "file49", NULL, 0);
+	printf("[readdir] Full path: %s\n", fpath);
+
+	dp = opendir(fpath);
+	if (!dp) 
+	{
+        return -1;
 	}
 
+    seekdir(dp, offset);
+    while ((de = readdir(dp)) != NULL)
+    {
+        if (filler(buffer, de->d_name, NULL, 0))
+            break;
+    }
+    closedir(dp);
+
+	//filler(buffer, ".", NULL, 0);
+	//filler(buffer, "..", NULL, 0);
+	//if(strcmp(path, "/") == 0) {
+	//	filler(buffer, "file54", NULL, 0);
+	//	filler(buffer, "file49", NULL, 0);
+	//}
+
 	return 0;
+}
+
+static int do_open(const char *path, struct fuse_file_info *fi)
+{
+    int fd = open(path, fi->flags);
+    fi->fh = fd;
+    return 0;
 }
 
 static int do_read(const char *path, char *buffer, size_t size, off_t offset, struct file_fuse_info *fi) {
@@ -70,7 +122,16 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
 		memcpy(buffer, file49text + offset, size);
 		return strlen(file49text) - offset;
 	} else 
-		return -1;	
+		return -1;
+}
+
+static int do_write(const char *path, const char *buf, size_t size,
+		    off_t offset, struct fuse_file_info *fi)
+{
+    printf("[do_write] Running ");
+    printf("[do_write] %s %d", path, fi->fh);
+
+    return 0;
 }
 
 
