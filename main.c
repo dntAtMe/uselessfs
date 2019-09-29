@@ -11,6 +11,9 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
+char *src1 =  "/home/dntAtMe/code/fuse/uselessfs/test";
+char *src2 =  "/home/dntAtMe/code/fuse/uselessfs/test2";
+
 char *xlate(const char *fname, char *rpath)
 {
 	char *rname;
@@ -54,7 +57,7 @@ static int do_getattr( const char *path, struct stat *st ) {
 */	
 	int res;
     	char* fpath;
-	fpath = xlate(path, "/home/dntAtMe/code/fuse/uselessfs/test");
+	fpath = xlate(path, src1);
 	printf("[getattr] Full path: %s\n", fpath);
 	
     res = lstat(fpath, st);
@@ -74,7 +77,7 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 	printf("[readdir] Running\n");
 	printf("[readdir] Requested path: %s\n", path);
 	
-	char* fpath = xlate(path, "/home/dntAtMe/code/fuse/uselessfs/test");
+	char* fpath = xlate(path, src1);
 
 	printf("[readdir] Full path: %s\n", fpath);
 
@@ -104,32 +107,42 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 
 static int do_open(const char *path, struct fuse_file_info *fi)
 {
-    int fd = open(path, fi->flags);
+    char *fpath = xlate(path, src1);
+
+    int fd = open(fpath, fi->flags);
     fi->fh = fd;
     return 0;
 }
 
-static int do_read(const char *path, char *buffer, size_t size, off_t offset, struct file_fuse_info *fi) {
+static int do_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) {
 	printf("[read] Running\n");
-	
-	char file54text[] = "file54";
-	char file49text[] = "\n\nfile49";	
+	printf("[read] Path: %s\n", path);
+    
+    char *fpath = xlate(path, src1);
+    printf("[read] Full path: %s\n", fpath);
+    printf("[read] fi->fh: %d\n", fi->fh);
 
-	if( strcmp(path, "/file53") == 0 ) {
-		memcpy(buffer, file54text + offset, size);
-		return strlen(file54text) - offset;
-	} else if( strcmp(path, "/file49") == 0 ) {
-		memcpy(buffer, file49text + offset, size);
-		return strlen(file49text) - offset;
-	} else 
-		return -1;
+    pread(fi->fh, buffer, size, offset);    
+    return 0;    
+//	char file54text[] = "file54";
+//	char file49text[] = "\n\nfile49";	
+//
+//	if( strcmp(path, "/file53") == 0 ) {
+//		memcpy(buffer, file54text + offset, size);
+//		return strlen(file54text) - offset;
+//	} else if( strcmp(path, "/file49") == 0 ) {
+//		memcpy(buffer, file49text + offset, size);
+//		return strlen(file49text) - offset;
+//	} else 
+//		return -1;
 }
 
 static int do_write(const char *path, const char *buf, size_t size,
 		    off_t offset, struct fuse_file_info *fi)
 {
-    printf("[do_write] Running ");
-    printf("[do_write] %s %d", path, fi->fh);
+    printf("[do_write] Running \n");
+    printf("[do_write] %s %d\n", path, fi->fh);
+
 
     return 0;
 }
