@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
+#include "log.h"
+
 char *src1 =  "/home/dntAtMe/code/fuse/uselessfs/test";
 char *src2 =  "/home/dntAtMe/code/fuse/uselessfs/test2";
 
@@ -30,13 +32,13 @@ char *xlate(const char *fname, char *rpath)
 		strcpy(rname, rpath);
 		strcpy(rname + rlen, fname);
 	}
-	printf("xlate %s\n", rname);
+	log_debug("xlate %s", rname);
 	return rname;
 }
 
 static int do_getattr( const char *path, struct stat *st ) {
-	printf("[getattr] Running\n");
-	printf("[getattr] Requested  path:%s\n", path);
+	log_debug("[getattr] Running");
+	log_debug("[getattr] Requested  path:%s", path);
 	
 /*
 	st->st_uid = getuid();	
@@ -58,15 +60,15 @@ static int do_getattr( const char *path, struct stat *st ) {
 	int res;
     	char* fpath;
 	fpath = xlate(path, src1);
-	printf("[getattr] Full path: %s\n", fpath);
+	log_debug("[getattr] Full path: %s", fpath);
 	
     res = lstat(fpath, st);
 	if (res == -1) {
-		printf("[getattr] -1, Ending\n");
+		printf("[getattr] -1, Ending");
 		return -errno;
 	}
 	
-	printf("[getattr] End\n");
+	log_debug("[getattr] End");
 	return 0;
 }
 
@@ -74,12 +76,12 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 	DIR *dp = NULL;
 	struct dirent *de;
 	
-	printf("[readdir] Running\n");
-	printf("[readdir] Requested path: %s\n", path);
+	log_debug("[readdir] Running");
+	log_debug("[readdir] Requested path: %s", path);
 	
 	char* fpath = xlate(path, src1);
 
-	printf("[readdir] Full path: %s\n", fpath);
+	log_debug("[readdir] Full path: %s", fpath);
 
 	dp = opendir(fpath);
 	if (!dp) 
@@ -115,12 +117,12 @@ static int do_open(const char *path, struct fuse_file_info *fi)
 }
 
 static int do_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) {
-	printf("[read] Running\n");
-	printf("[read] Path: %s\n", path);
+	log_debug("[read] Running");
+	log_debug("[read] Path: %s", path);
     
     char *fpath = xlate(path, src1);
-    printf("[read] Full path: %s\n", fpath);
-    printf("[read] fi->fh: %d\n", fi->fh);
+    log_debug("[read] Full path: %s", fpath);
+    log_debug("[read] fi->fh: %d", fi->fh);
 
     return pread(fi->fh, buffer, size, offset);    
 //	char file54text[] = "file54";
@@ -163,7 +165,7 @@ static int do_truncate(const char *path, off_t size)
 
 static int do_release(const char *path, struct fuse_file_info *fi)
 {
-    printf("[release] Starting\n");
+    log_debug("[release] Starting");
     close(fi->fh);
     return 0;
 }
@@ -171,8 +173,8 @@ static int do_release(const char *path, struct fuse_file_info *fi)
 static int do_write(const char *path, const char *buf, size_t size,
 		    off_t offset, struct fuse_file_info *fi)
 {
-    printf("[do_write] Running \n");
-    printf("[do_write] %s %d\n", path, fi->fh);
+    log_debug("[do_write] Running ");
+    log_debug("[do_write] %s %d", path, fi->fh);
 
     pwrite(fi->fh, buf, size, offset);
 
