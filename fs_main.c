@@ -128,7 +128,6 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 int testvar = 0;
 static int do_open(const char *path, struct fuse_file_info *fi)
 {
-
     char *fpaths[] = {"", ""};
 
     for (size_t i = 0; i < sizeof(sources) / sizeof(sources[0]); i++)
@@ -173,24 +172,27 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
 static int do_chmod(const char *path, mode_t mode)
 {
     char *fpath;
-
     fpath = xlate(path, src1);
+    
+    log_debug("[chmod] Full path: %s", fpath);
     return chmod(fpath, mode);
 }
 
 static int do_chown(const char *path, uid_t uid, gid_t gid)
 {
     char *fpath;
-    
     fpath = xlate(path, src1);
+    log_debug("[chown] Full path: %s", fpath);
+    
     return chown(fpath, uid, gid);
 }
 
 static int do_truncate(const char *path, off_t size)
 {
     char *fpath;
-
     fpath = xlate(path, src1);
+    log_debug("[truncate] Full path: %s", fpath);
+    
     return truncate(fpath, size);
 
 }
