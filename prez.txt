@@ -7,7 +7,23 @@ RAID-like system.
 Repliki mozna ustawic na jednym, jak i wielu dyskach. Na start sprawdzana jest predkosc kazdej repliki, ustawiajac jej priorytet. Dane sa sciagane z replik o najwyzszym priorytecie.
 Opcja1: Czytaj z najwyzszego priorytetu i ewentualnie napraw. Jesli sie nie da, idz do nastepnego.
 Opcja2: Czytaj z najwyzszego priorytetu i ewentualnie napraw. Przejedz przez wszystkie repliki czy nie wymagana jest naprawa
+Repliki: calkowite kopie plikow | kopie kolejnych sektorow ( pod jednym vfs lub pod kilkoma, np. gdyby kazdy vfs byl pod innym dyskiem, w drugim przypadku nie utracimy wszystkich danych w razie jakby dysk nawalil) | CRC + checksum?
+Warstwowe dzialanie? replika | kopie sektorow | checksum jako nakladki na poprzednie systemy plikow
 
+Opis
+RAID (Redundant Array of Independent Disks)
+RAID-0: (Striping) Dane dzielone na mniejsze segmenty i zapisywane na kazdym dysku z danej grupy dyskow (repliki)
+RAID-1: Lustrzane odbicie, n/2 miejsca. Zapisuje calkowite duplikaty danych.
+    Odporne na utrate n-1 dyskow
+    Duzy koszt miejsca
+RAID-2: Zapisywanie po 1 bicie na kolejnych dyskach, kod hamminga. Dowolny dysk moze zostac odtworzony przez pozostale
+RAID-3: Zapisywanie po 8 bitow na kolejnych dyskach, sumy kontrolne. Dziala jak R0, ale wystepuje jeszcze dodatkowy dysk ktory zapisuje kody parzystosci.
+RAID-4: Podobnie do R3, ale dane dzielone na bloki. Striping. Blok parzystosci zapisywany na dedykowanym dysku.
+RAID-5: A'la R4, co najmniej 3 dyski. Rozlozenie danych na wszystkich dyskach, 1/4 danych rezerwowana na dane korekcji bledow, wiec 3/4 pojemnosci przechowuje dane.
+RAID-6: Podwojna parzystosc, ratuje awarie dwoch dyskow
+
+RAID-0+1: RAID-1, ktorego elementami sa macierze RAID-0. Pojedyncza awaria dysku -> RAID-0
+RAID-1+0: RAID 0, ktorego elementami sa macierze RAID-1.
 
 Problemy
 Wirtualne systemy plikow nie przechowuja danych, tylko przetwarzaja juz istniejace dane. Przy montowaniu systemu, czy repliki juz musza istniec? Czy zostana stworzone na podstawie danych w mountpoint?  Czy na poczatku sprawdzamy rozjechanie replik?
