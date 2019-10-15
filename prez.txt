@@ -1,0 +1,14 @@
+Wstep
+redundantny system plikow wykorzystujac FUSE (Filesystem in Userpsace), modul ktory pozwala na implementacje systemu plikow w przestrzeni uzytkownika. Modul fuse stanowi "most" miedzy kodem in userspace, a interfejsem w kernelu.
+FUSE przyu tworzeniu vfs pozwala skupic sie na docelowej funkcjonalnosci.
+
+Rozwiazania
+RAID-like system. 
+Repliki mozna ustawic na jednym, jak i wielu dyskach. Na start sprawdzana jest predkosc kazdej repliki, ustawiajac jej priorytet. Dane sa sciagane z replik o najwyzszym priorytecie.
+Opcja1: Czytaj z najwyzszego priorytetu i ewentualnie napraw. Jesli sie nie da, idz do nastepnego.
+Opcja2: Czytaj z najwyzszego priorytetu i ewentualnie napraw. Przejedz przez wszystkie repliki czy nie wymagana jest naprawa
+
+
+Problemy
+Wirtualne systemy plikow nie przechowuja danych, tylko przetwarzaja juz istniejace dane. Przy montowaniu systemu, czy repliki juz musza istniec? Czy zostana stworzone na podstawie danych w mountpoint?  Czy na poczatku sprawdzamy rozjechanie replik?
+
