@@ -28,3 +28,27 @@ RAID-1+0: RAID 0, ktorego elementami sa macierze RAID-1.
 Problemy
 Wirtualne systemy plikow nie przechowuja danych, tylko przetwarzaja juz istniejace dane. Przy montowaniu systemu, czy repliki juz musza istniec? Czy zostana stworzone na podstawie danych w mountpoint?  Czy na poczatku sprawdzamy rozjechanie replik?
 
+
+
+
+
+--- IMPLEMENTACJA ---
+Config:
+
+
+Systemy:
+RAID0-like - Jedynie podstawowa funkcjonalnosc, tj. read, write, open, close
+RAID1-like - Pelna funkcjonalnosc
+RAID4,5-like - na podstawie R0
++ wariacje
+
+Gniazdo kontrolne:
+
+Kody korekcyjne:
+
+Pozostale algorytmy:
+
+Szczegoly:
+-Priorytety replik
+-Statusy replik {clean, dirty}?
+
