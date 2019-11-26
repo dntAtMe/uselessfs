@@ -26,29 +26,48 @@ RAID-0+1: RAID-1, ktorego elementami sa macierze RAID-0. Pojedyncza awaria dysku
 RAID-1+0: RAID 0, ktorego elementami sa macierze RAID-1.
 
 Problemy
-Wirtualne systemy plikow nie przechowuja danych, tylko przetwarzaja juz istniejace dane. Przy montowaniu systemu, czy repliki juz musza istniec? Czy zostana stworzone na podstawie danych w mountpoint?  Czy na poczatku sprawdzamy rozjechanie replik?
+Wirtualne systemy plikow nie przechowuja danych, tylko przetwarzaja juz istniejace dane. 
+Przy montowaniu systemu, czy repliki juz musza istniec? 
+Czy zostana stworzone na podstawie danych w mountpoint?  
+Czy na poczatku sprawdzamy rozjechanie replik?
 
-
+Forward error correction dla raid
 
 
 
 --- IMPLEMENTACJA ---
 Config:
-
+ - 
+ - 
 
 Systemy:
 RAID0-like - Jedynie podstawowa funkcjonalnosc, tj. read, write, open, close
 RAID1-like - Pelna funkcjonalnosc
-RAID4,5-like - na podstawie R0
+RAID2,3-like - kody korekcyjne, podstawowa funkcjonalnosc systemu plikow
+RAID4,5-like - na podstawie R0, podstawowwa funkcjonalnosc systemu plikow
 + wariacje
 
 Gniazdo kontrolne:
+ - Symulacja
+
+Możliwe uszkodzenia danych:
+ - Bitrot
+ - Burst errors
+ - Błąd zapisu/odczytu, uszkodzone metadane/nagłówek pliku
+ - Uszkodzony dysk, brakujące pliki w podsystemie
+
+Detekcja błędów:
+ - Sumy kontrolne jako metadane pliku?
+ - Bloki parzystości (stricte raid4,5,6)
+ - 
 
 Kody korekcyjne:
+ - Blokowe; Reed-Solomon, Hamming
 
 Pozostale algorytmy:
+ - Round-robin
 
 Szczegoly:
--Priorytety replik
--Statusy replik {clean, dirty}?
+ - Priorytety replik
+ - Statusy replik {clean, dirty}?
 

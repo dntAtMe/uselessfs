@@ -1,7 +1,7 @@
-#define FUSE_USE_VERSION 31
+#define FUSE_USE_VERSION 32
 
 #include <dirent.h>
-#include <fuse.h>
+#include "./include/fuse3/fuse.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -13,8 +13,8 @@
 
 #include "log.h"
 
-char *src1 =  "/home/dntAtMe/code/fuse/uselessfs/test";
-char *src2 =  "/home/dntAtMe/code/fuse/uselessfs/test2";
+char *src1 =  "/home/kwik/Code/uselessfs/test";
+char *src2 =  "/home/kwik/Code/uselessfs/test2";
 
 char *xlate(const char *fname, char *rpath)
 {
@@ -92,7 +92,7 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
     seekdir(dp, offset);
     while ((de = readdir(dp)) != NULL)
     {
-        if (filler(buffer, de->d_name, NULL, 0))
+        if (filler(buffer, de->d_name, NULL, 0, FUSE_FILL_DIR_PLUS))
             break;
     }
     closedir(dp);
@@ -110,7 +110,7 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 static int do_open(const char *path, struct fuse_file_info *fi)
 {
     char *fpath = xlate(path, src1);
-
+	
     int fd = open(fpath, fi->flags);
     fi->fh = fd;
     return 0;
