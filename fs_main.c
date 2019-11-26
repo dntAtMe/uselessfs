@@ -13,8 +13,8 @@
 
 #include "log.h"
 
-char *src1 =  "/home/dntAtMe/code/fuse/uselessfs/test";
-char *src2 =  "/home/dntAtMe/code/fuse/uselessfs/test2";
+char *src1 =  "/home/kpieniaz/private/uselessfs/test";
+char *src2 =  "/home/kpieniaz/private/uselessfs/test2";
 
 char *xlate(const char *fname, char *rpath)
 {
@@ -63,6 +63,7 @@ static int do_getattr( const char *path, struct stat *st ) {
 	log_debug("[getattr] Full path: %s", fpath);
 	
     res = lstat(fpath, st);
+    st->st_size=6;
 	if (res == -1) {
 		printf("[getattr] -1, Ending");
 		return -errno;
@@ -107,12 +108,16 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 	return 0;
 }
 
+int testvar = 0;
 static int do_open(const char *path, struct fuse_file_info *fi)
 {
-    char *fpath = xlate(path, src1);
+    char *fpath1 = xlate(path, src1);
+    char *fpath2 = xlate(path, src2);
 
-    int fd = open(fpath, fi->flags);
-    fi->fh = fd;
+    int fd1 = open(fpath1, fi->flags);
+    int fd2 = open(fpath2, fi->flags);
+    fi->fh = fd1;
+    testvar = fd2;
     return 0;
 }
 
@@ -123,8 +128,16 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
     char *fpath = xlate(path, src1);
     log_debug("[read] Full path: %s", fpath);
     log_debug("[read] fi->fh: %d", fi->fh);
-
-    return pread(fi->fh, buffer, size, offset);    
+    
+    log_debug("[read] size: %d offset: %d fifh: %d testvar %d", size, offset, fi->fh, testvar);
+    //int a2 = pread(testvar, buffer, 1, offset);
+    //int a1 = pread(fi->fh, buffer + a2, size, offset);
+    //log_debug("[read] buffer: %s end a1: %d a2: %d", buffer, a1, a2);
+    
+    char text[] = "bbdupa";
+    memcpy(buffer, text + offset, size);
+    log_debug("[read] buffer: %s", buffer); 
+    return strlen(text) - offset;
 //	char file54text[] = "file54";
 //	char file49text[] = "\n\nfile49";	
 //
