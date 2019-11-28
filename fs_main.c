@@ -13,10 +13,16 @@
 
 #include "log.h"
 
-char src1[] =  "/home/kwik/Code/uselessfs/test";
-char src2[] =  "/home/kwik/Code/uselessfs/test2";
+char src1[]="/home/kwik/Code/uselessfs/test";
+char src2[]="/home/kwik/Code/uselessfs/test2";
+int file_handlers[2];
 
-char *xlate(const char *fname, char *rpath)
+const char* sources[] = {
+    "/home/kwik/Code/uselessfs/test",
+    "/home/kwik/Code/uselessfs/test2",
+};
+
+char *xlate(const char *fname, const char *rpath)
 {
 	char *rname;
 	int   rlen, flen;
@@ -58,15 +64,22 @@ static int do_getattr( const char *path, struct stat *st ) {
 	}
 */	
 	int res;
-	char *fpath1 = xlate(path, src1);
-	char *fpath2 = xlate(path, src2);
-	log_debug("[getattr] Full path: %s, %s", fpath1, fpath2);
+	char *fpaths[] = {"", ""};
+
+    for (size_t i = 0; i < sizeof(sources) / sizeof(sources[0]); i++)
+    {
+       char *tmp_path = xlate(path, sources[i]);
+       fpaths[i] = (char*) malloc(strlen(tmp_path)+1);
+       strcpy(fpaths[i],tmp_path); 
+    }
+    
+	log_debug("[getattr] Full path: %s, %s", fpaths[0], fpaths[1]);
 
     struct stat *st1;
     struct stat st2;
 
-    res = lstat(fpath1, st);
-    res = lstat(fpath2, &st2);
+    res = lstat(fpaths[0], st);
+    res = lstat(fpaths[1], &st2);
     st->st_size+=st2.st_size;
 	if (res == -1) {
 		printf("[getattr] -1, Ending");
@@ -77,7 +90,7 @@ static int do_getattr( const char *path, struct stat *st ) {
 	return 0;
 }
 
-static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct file_fuse_info *fi) {	
+static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {	
 	DIR *dp = NULL;
 	struct dirent *de;
 	
@@ -115,13 +128,18 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 int testvar = 0;
 static int do_open(const char *path, struct fuse_file_info *fi)
 {
-    char *fpath1 = xlate(path, src1);
-    char *fpath2 = xlate(path, src2);
 
-    int fd1 = open(fpath1, fi->flags);
-    int fd2 = open(fpath2, fi->flags);
-    fi->fh = fd1;
-    testvar = fd2;
+    char *fpaths[] = {"", ""};
+
+    for (size_t i = 0; i < sizeof(sources) / sizeof(sources[0]); i++)
+    {
+       char *tmp_path = xlate(path, sources[i]);
+       fpaths[i] = (char*) malloc(strlen(tmp_path)+1);
+       strcpy(fpaths[i],tmp_path); 
+    }
+    
+    file_handlers[0] = open(fpaths[0], fi->flags);
+    file_handlers[1] = open(fpaths[1], fi->flags);
     return 0;
 }
 
@@ -129,13 +147,13 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
 	log_debug("[read] Running");
 	log_debug("[read] Path: %s", path);
     
-    char *fpath = xlate(path, src1);
-    log_debug("[read] Full path: %s", fpath);
-    log_debug("[read] fi->fh: %d", fi->fh);
+    //char *fpath = xlate(path, src1);
+    //log_debug("[read] Full path: %s", fpath);
+    //log_debug("[read] fi->fh: %d", fi->fh);
     
-    log_debug("[read] size: %d offset: %d fifh: %d testvar %d", size, offset, fi->fh, testvar);
-    int a2 = pread(testvar, buffer, size, offset);
-    int a1 = pread(fi->fh, buffer + a2, size, offset);
+    log_debug("[read] size: %d offset: %d fh1: %d fh2: %d", size, offset, file_handlers[0], file_handlers[1]);
+    int a2 = pread(file_handlers[0], buffer, size, offset);
+    int a1 = pread(file_handlers[1], buffer + a2, size, offset);
     log_debug("[read] buffer: %s end a1: %d a2: %d", buffer, a1, a2);
 
     return a1+a2;
@@ -198,9 +216,9 @@ static int do_write(const char *path, const char *buf, size_t size,
 
 
 static struct fuse_operations operations = {
-	.getattr = do_getattr,
-	.readdir = do_readdir,
-	.read = do_read,
+    .getattr = do_getattr,
+    .readdir = do_readdir,
+    .read = do_read,
 
     .open = do_open,
     .write = do_write,
