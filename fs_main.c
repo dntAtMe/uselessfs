@@ -208,9 +208,9 @@ static int do_write(const char *path, const char *buf, size_t size,
 		    off_t offset, struct fuse_file_info *fi)
 {
     log_debug("[do_write] Running ");
-    log_debug("[do_write] %s %d", path, fi->fh);
+    log_debug("[do_write] %s %d", path,file_handlers[0]);
 
-    pwrite(fi->fh, buf, size, offset);
+    pwrite(file_handlers[0], buf, size, offset);
 
     return 0;
 }
