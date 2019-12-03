@@ -1,0 +1,99 @@
+\chapter{Implementacja systemu}
+\thispagestyle{chapterBeginStyle}
+
+\section{Opis technologii}
+
+Należy tutaj zamieścić krótki opis (z referencjami) do technologii użytych przy implementacji systemu.
+
+{\color{dgray}
+Do implementacji systemu użyto języka JAVA w wersji \ldots, szczegółowy opis można znaleźć w \cite{Java}. Interfejs zaprojektowano w oparciu o HTML5 i CSS3 \cite{HTML-CSS}.
+}
+
+\section{Omówienie kodów źródłowych}
+
+{\color{dgray}
+Kod źródłowy~\ref{ws} przedstawia opisy poszczególnych metod interfejsu: \texttt{WSPodmiotRejestracjaIF}. Kompletne
+kody źródłowe znajdują się na płycie CD dołączonej do niniejszej pracy w katalogu \texttt{Kody} (patrz Dodatek~\ref{plytaCD}).
+}
+
+\begin{small}
+\begin{lstlisting}[language=Java, frame=lines, numberstyle=\tiny, stepnumber=5, caption=Interfejs usługi Web Service: \texttt{WSPodmiotRejestracjaIF}\label{ws}., firstnumber=1]
+package erejestracja.podmiot;
+import java.rmi.RemoteException;
+// Interfejs web serwisu dotyczącego obsługi podmiotów i rejestracji.
+public interface WSPodmiotRejestracjaIF extends java.rmi.Remote{
+// Pokazuje informacje o danym podmiocie.
+// parametr: nrPeselRegon - numer PESEL podmiotu lub numer REGON firmy.
+// return: Podmiot - obiekt transportowy: informacje o danym podmiocie.
+public Podmiot pokazPodmiot(long nrPeselRegon) throws RemoteException;
+// Dodaje nowy podmiot.
+// parametr: nowyPodmiot - obiekt transportowy: informacje o nowym podmiocie.
+// return: true - jeśli podmiot dodano, false - jeśli nie dodano.
+public boolean dodajPodmiot(Podmiot nowyPodmiot) throws RemoteException;
+// Usuwa dany podmiot.
+// parametr: nrPeselRegon - numer PESEL osoby fizycznej lub numer REGON firmy.
+// return: true - jeśli podmiot usunięto, false - jeśli nie usunięto.
+public boolean usunPodmiot(long nrPeselRegon) throws RemoteException;
+// Modyfikuje dany podmiot.
+// parametr: podmiot - obiekt transportowy: informacje o modyfikowanym podmiocie.
+// return: true - jeśli podmiot zmodyfikowano, false - jeśli nie zmodyfikowano.
+public boolean modyfikujPodmiot(Podmiot podmiot) throws RemoteException;
+// Pokazuje zarejestrowane podmioty na dany dowód rejestracyjny.
+// parametr: nrDowoduRejestracyjnego - numer dowodu rejestracyjnego.
+// return: PodmiotRejestracja[] - tablica obiektów transportowych: informacje o
+// wszystkich zarejestrowanych podmiotach.
+public PodmiotRejestracja[] pokazZarejestrowanePodmioty(
+String nrDowoduRejestracyjnego) throws RemoteException;
+// Nowa rejestracja podmiotu na dany dowód rejestracyjny.
+// parametr: nrDowoduRejestracyjnego - numer dowodu rejestracyjnego.
+// parametr: nrPeselRegon - numer PESEL podmiotu lub numer REGON firmy.
+// parametr: czyWlasciciel - czy dany podmiot jest właścicielem pojazdu.
+// return: true - jeśli zarejestrowano podmiot, false - jeśli nie zarejestrowano.
+public boolean zarejestrujNowyPodmiot(String nrDowoduRejestracyjnego,
+long nrPeselRegon, boolean czyWlasciciel) throws RemoteException;
+// Usuwa wiązanie pomiędzy danym podmiotem, a dowodem rejestracyjnym.
+// parametr: nrDowoduRejestracyjnego - numer dowodu rejestracyjnego.
+// parametr: nrPeselRegon - numer PESEL podmiotu lub numer REGON firmy.
+// return: true - jeśli podmiot wyrejestrowano, false - jeśli nie wyrejestrowano.
+public boolean wyrejestrujPodmiot(String nrDowoduRejestracyjnego,
+long nrPeselRegon) throws RemoteException;
+\end{lstlisting} 
+\end{small}
+
+{\color{dgray}
+Kod źródłowy~\ref{req} przedstawia procedurę przetwarzającą żądanie. Hasz utrwalany \verb|%granulacja| wykorzystywany jest do komunikacji międzyprocesowej.
+}
+
+\begin{small}
+\begin{lstlisting}[language=perl, frame=lines, caption=Przetwarzanie żądania - procedura \texttt{process\_req()}\label{req}., firstnumber=86]
+sub process_req(){	
+  my($r) = @_;
+  $wyn = "";
+  if ($r=~/get/i) {
+	@reqest = split(" ",$r);
+	$zad = $reqest[0];
+	$ts1 = $reqest[1];
+	$ts2 = $reqest[2];
+	@date1 = split(/\D/,$ts1);
+	@date2 = split(/\D/,$ts2);
+	print "odebralem: $r"; 
+	$wyn = $wyn."zadanie: $zad\n";
+	$wyn = $wyn."czas_od: "."$date1[0]"."-"."$date1[1]"."-"."$date1[2]"."_"."$date1[3]".":"."$date1[4]".":"."$date1[5]"."\n";
+	$wyn = $wyn."czas_do: "."$date2[0]"."-"."$date2[1]"."-"."$date2[2]"."_"."$date2[3]".":"."$date2[4]".":"."$date2[5]"."\n";		
+	$wyn = $wyn.&sym_sens($ts1,$ts2);
+	return $wyn;
+  }
+  if ($r=~/set gt/i) {
+	@reqest = split(" ",$r);
+	$zad = $reqest[0];
+	$ts1 = $reqest[1];
+	$ts2 = $reqest[2];
+	$gt = $reqest[2];
+	dbmopen(%granulacja,"granulacja_baza",0644);
+	$granulacja{"gt"}=$gt;
+	dbmclose(%granulacja);
+	$wyn = "\'GT\' zmienione na: $gt";
+  }		
+}	
+\end{lstlisting} 
+\end{small}

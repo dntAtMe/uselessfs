@@ -1,0 +1,120 @@
+Spis treści
+1 Wstęp 1
+2 Analiza problemu 3
+3 Projekt systemu
+3.1 Grupy użytkowników i założenia
+3.2 Przypadki użycia i scenariusze .
+3.3 Opis wykorzystanych rozwiązań .
+3.4 Konfiguracja . . . . . . . . . . .
+3.5 Gniazdo sterujące . . . . . . . . .
+3.6 Diagramy . . . . . . . . . . . . .
+3.7 Opis protokołów . . . . . . . . .
+3.8 Opis algorytmów . . . . . . . . .
+4 Implementacja systemu
+4.1 Opis technologii . . . . . . . . . . .
+4.2 Omówienie kodów źródłowych . . .
+4.3 Omówienie pliku konfiguracyjnego
+4.4 Omówienie wydajności systemu . . .
+5.1 Kompilacja . . . . . . . .
+5.2 Przykładowa konfiguracja
+5.3 Gniazdo sterujące . . . . .
+5.4 Uruchamianie . . . . . . . .
+6 Podsumowanie 11
+Bibliografia 13
+A Zawartość płyty CD
+
+Wstęp
+Praca swoim zakresem obejmuje systemy plików, kodowanie
+Celem pracy jest zaprojektowanie oraz implementacja wirtualnego systemu plików w przestrzeni użytkownika o następujących założeniach funkcjonalnych:
+• ochrona w przypadku częściowego uszkodzenia danych
+• redundacja danych (kopie plików, kopiowane sektory na wiele podsystemów, CRC + checksum)
+• detekcja błędów
+• korekcja błędów (kody korekcyjne)
+• przetrzymywanie kopii danych na wielu dyskach
+•
+Istnieje szereg systemów plików, również wirtualnych, zapewniających bezpieczeństwo danych w postaci
+redundancji, w większości rozproszonych. [1]
+Zakres pracy
+Cel pracy
+Analiza istniejących rozwiązań, przegląd literatury
+Opis zawartości pracy
+
+
+Analiza problemu
+---------------------------------
+W tym rozdziale należy przedstawić analizę zagadnienia, które podlega informatyzacji. Należy zidenty-
+fikować i opisać obiekty składowe rozważanego wycinka rzeczywistości i ich wzajemne relacje (np. użytkown-
+ików systemu i ich role). Należy szczegółowo omówić procesy jakie zachodzą w systemie i które będą infor-
+matyzowane, takie jak np. przepływ dokumentów. Należy sprecyzować i wypunktować założenia funkcjon-
+alne i poza funkcjonalne dla projektowanego systemu. Jeśli istnieją aplikacje realizujące dowolny podzbiór
+zadanych funkcjonalności realizowanego systemu należy przeprowadzić ich analizę porównawczą, wskazując na
+różnice bądź innowacyjne elementy, które projektowany w pracy system informatyczny będzie zawierał. Należy
+odnieść się do uwarunkowań prawnych związanych z procesami przetwarzania danych w projektowanym sys-
+temie. Jeśli zachodzi konieczność, należy wprowadzić i omówić model matematyczny elementów systemu na
+odpowiednim poziomie abstrakcji.
+W niniejszym rozdziale omówiono koncepcję architektury programowej systemu . . . . W szczególny sposób
+. . . . Omówiono założenia funkcjonalne i niefunkcjonalne podsystemów . . . . Przedstawiono mechanizmy . . . .
+Sklasyfikowano systemy ze względu na . . . . Omówiono istniejące rozwiązania informatyczne o podobnej
+funkcjonalności . . . (zobacz [2]).
+--------------------------------------
+-Omowienie sposobow redundancji danych -RAID -Istniejace rozwiazania -Wybrane rozwiazania
+-Problem rozbijania danych -Problem wielu replik -Problem synchronizacji -Problem obsługi pełnej funkcjon-
+alności, np. softlinks
+Założenia: -Rodzaj wykorzystywanego sposobu redundacji niewidoczny dla uzytkownika -Uzytkownik nie
+martwi sie replikami poza wyjatkowymi sytuacjami: synchronizacja replik przy zamontowaniu, zatwierdzenie
+korekty
+
+3.1 Grupy użytkowników i założenia
+Założenia funkcjonalne i poza funkcjonalne, zastosowanie, redundacja danych, bezpiczeństwo prechowywania plików, kolejne funkcje jako warstwy.
+3.2 Przypadki użycia i scenariusze
+Opis możliwych scenariuszy utraty danych i w jaki sposób zostaną odzyskane; przypadki użycia nie tylko
+redundacji, ale i wykorzystania kilku dysków.
+3.3 Opis wykorzystanych rozwiązań
+Opis kolejnych poziomów RAID, które stanowią podstawę w imlementacji systemu. RAID-0, RAID-
+1, RAID-3, RAID-4, RAID-5, RAID-6 W jaki sposób system poszukuje najszybszego dysku Opis gniazda
+unixowego Wirtualne systemu plików w kontekście danych; brak przechowywania, tylko translacja konsek-
+wencje tego podejścia
+3.4 Konfiguracja
+Sposób opisania żądanych zachowań oraz konfiguracji replik; Przykładowo, mountpoint ma znajdować
+się na dwóch replikach RAID-5 A i B, replika A ma mieć repliki RAID-1 C i D, replika B ma mieć repliki
+RAID-0 E i F.
+
+3.5 Gniazdo sterujące
+Opis działania gniazda sterującego, które umożliwia symulowanie pewnych zachowań w systemie plików,
+odczytywanie logów systemu plików oraz dynamiczne ustawianie parametrów
+3.6 Diagramy
+Komunikacja pomiędzy kolejnymi warstwami systemu
+3.7 Opis protokołów
+3.8 Opis algorytmów
+Opis zastosowanych rozwiązań; reed-solomon, kolejne raidy, szukanie najlepszej repliki
+
+
+Implementacja systemu
+4.1 Opis technologii
+FUSE, C, RAID, Unix (sockets, ext4 fs)
+4.2 Omówienie kodów źródłowych
+4.3 Omówienie pliku konfiguracyjnego
+4.4 Omówienie wydajności systemu
+Porównanie zastosowanych rozwiązań, szukając n̈ajbardziej optymalnego,̈ zbadanie narzutu systemu jako
+nakładka na istniejący system plików, omówienie możliwych rozwiązań na obniżenie narzutu, przyśpieszenie działania
+
+
+Kompilacja i uruchamianie
+5.1 Kompilacja
+Kompilacja jako ważny czyynik implementowanego systemu plików; brak potrzeby sprawdzania paramet-
+rów dynamicznie przyśpieszy działanie
+5.2 Przykładowa konfiguracja
+Przedstawienie przykładowej konfiguracji
+5.3 Gniazdo sterujące
+Jak uruchomić oraz korzystać z gniazda sterującego
+5.4 Uruchamianie
+Montowanie systemu plików
+
+
+Podsumowanie
+W podsumowanie należy określić stan zakończonych prac projektowych i implementacyjnych. Zaznaczyć,
+które z zakładanych funkcjonalności systemu udało się zrealizować. Omówić aspekty pielęgnacji systemu
+w środowisku wdrożeniowym. Wskazać dalsze możliwe kierunki rozwoju systemu, np. dodawanie nowych
+komponentów realizujących nowe funkcje.
+W podsumowaniu należy podkreślić nowatorskie rozwiązania zastosowane w projekcie i implementacji
+(niebanalne algorytmy, nowe technologie, itp.).
