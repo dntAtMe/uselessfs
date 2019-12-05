@@ -13,13 +13,13 @@
 
 #include "log.h"
 
-char src1[]="/home/kwik/Code/uselessfs/test";
-char src2[]="/home/kwik/Code/uselessfs/test2";
+char src1[]="/home/dntAtMe/code/fuse/uselessfs/test";
+char src2[]="/home/dntAtMe/code/fuse/uselessfs/test2";
 int file_handlers[2];
 
 const char* sources[] = {
-    "/home/kwik/Code/uselessfs/test",
-    "/home/kwik/Code/uselessfs/test2",
+    "/home/dntAtMe/code/fuse/uselessfs/test",
+    "/home/dntAtMe/code/fuse/uselessfs/test2",
 };
 
 char *xlate(const char *fname, const char *rpath)
@@ -204,14 +204,40 @@ static int do_release(const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
+
+//RAID-2 zabity; wymaga zapisywania bitów, kiedy system plików odczyta z 4kb, minimalny rozmiar pliku
 static int do_write(const char *path, const char *buf, size_t size,
 		    off_t offset, struct fuse_file_info *fi)
 {
     log_debug("[do_write] Running ");
     log_debug("[do_write] %s %d", path,file_handlers[0]);
-
+//P0 = D0 + D1 + D3 + D4 + D6
+//P1 = D0 + D2 + D3 + D5 + D6
+//P2 = D1 + D2 + D3 + D7
+//P3 = D4 + D5 + D6 + D7
+    char *letter = "a";
+    char p0, p1, p2, p3;
+    p0 = ((*letter) % 2 + ((*letter) >> 1) % 2 + ((*letter) >> 3) % 2 + ((*letter) >> 4) % 2 + ((*letter) >> 6) % 2 ) %2;
+    p1 = ((*letter) % 2 + ((*letter) >> 2) % 2 + ((*letter) >> 3) % 2 + ((*letter) >> 5) % 2 + ((*letter) >> 6) % 2 ) %2;
+    p2 = (((*letter) >> 1) % 2 + ((*letter) >> 2) % 2 + ((*letter) >> 3) % 2 + ((*letter) >> 7) % 2 ) %2;
+    p3 = (((*letter) >> 4) % 2 + ((*letter) >> 5) % 2 + ((*letter) >> 6) % 2 + ((*letter) >> 7) % 2) %2;
+    char out = 0x00;
+    /*
+     * foreach byte in bytes
+     *  calculateHamming
+     *  attachToBuffer
+     * writeFromBuffer
+     */
+    out |= p3;
+    out <<= 1;
+    out |= p2;
+    out <<= 1;
+    out |= p1;
+    out <<= 1;
+    out |= p0;
+    log_debug("[do_write] p0: %d p1: %d p2: %d p3: %d, out: %d", (int) p0, (int) p1, (int) p2, (int) p3, (int) out);
     pwrite(file_handlers[0], buf, size, offset);
-
+    pwrite(file_handlers[1], &out, 1, offset);
     return 0;
 }
 

@@ -17,11 +17,7 @@
 	
 	\begin{frame}
 		\frametitle{Cel pracy}
-		\begin{itemize}
-			\item System plików zapewniający ochronę danych nawet w przypadku ich uszkodzenia.
-			\item W oparciu o interfejs FUSE.
-		\end{itemize}
-		
+			System plików zapewniający ochronę danych nawet w przypadku ich uszkodzenia w oparciu o interfejs FUSE.
 	\end{frame}
 
 	\begin{frame}
@@ -41,10 +37,13 @@
 			\end{itemize}
 			\pause
 			\item Obsługa wybranych funkcjonalności systemu plików
+			\begin{itemize}
+				\item Pełna funkcjonalność, jeśli jest aktywna replika typu 1.
+			\end{itemize}
 			\pause
 			\item Wygodne użytkowanie
 			\begin{itemize}
-				\item Podział i duplikacja danych jak najbardziej transparentna dla użytkownika
+				\item Podział i duplikacja danych wystarczająco transparentna dla użytkownika
 				\item Rozwiązywanie konfliktów w przypadku niezgodności danych
 				\item Dostosowanie systemu do własnych potrzeb
 			\end{itemize}
@@ -81,7 +80,7 @@
 			\begin{itemize}
 				\item Cały system może być podzielony na warstwy współpracujące ze sobą. 
 				\begin{itemize}
-					\item Każdy typ repliki to nowa warstwa
+					\item Każda replika to nowa warstwa
 				\end{itemize}
 				\pause
 				\item Podział na warstwy umożliwia rozwiązania typu RAID
@@ -105,7 +104,20 @@
 	\frametitle{Replika typu 0}
 		\begin{columns}
 		\column{0.7\textwidth}
-		Lorem ipsum
+		\begin{block}{Redundancja}
+			Replika typu 0 nie zapewnia ochrony danych, jedynie ich odpowiedni rozkład w warstwie
+		\end{block}
+		\begin{itemize}
+			\item Podstawa do pozostałych replik blokowych
+			\item Dwa podziały:
+			\begin{itemize}
+				\item Bloki stałej długości
+				\item Bloki zmiennej długości
+			\end{itemize}
+			\item Operacje read, write, open, close, stat
+
+			\item Podział danych niewidoczny dla użytkownika
+		\end{itemize}
 		\column{0.3\textwidth}
 		\begin{figure}
 			\includegraphics[scale=0.5]{raid-0.png}
@@ -117,7 +129,14 @@
 	\frametitle{Replika typu 1}
 	\begin{columns}
 		\column{0.7\textwidth}
-		Lorem ipsum
+		\begin{block}{Redundancja}
+			Replika typu 1 tworzy odbicie lustrzane danych
+		\end{block}
+		\begin{itemize}
+			\item Wysoki koszt pamięci
+			\item Pełna funkcjonalność systemu plików
+			\item Uszkodzone dane zastąpione danymi z odbicia
+		\end{itemize}
 		\column{0.3\textwidth}
 		\begin{figure}
 			\includegraphics[scale=0.09]{raid-1.png}
@@ -127,9 +146,15 @@
 	
 \begin{frame}
 	\frametitle{Replika typu 2}
+	\begin{block}{Redundancja}
+		Replika typu 2 dopisuje do zapisywanych danych bity parzystości
+	\end{block}
 	\begin{columns}
 		\column{0.4\textwidth}
-		Lorem ipsum
+		\begin{itemize}
+			\item Kody korekcyjne (Hamming)
+			\item Oryginalnie rozkład danych po jednym bicie
+		\end{itemize}
 		\column{0.6\textwidth}
 		\begin{figure}
 			\includegraphics[scale=0.1]{raid-2.png}
@@ -139,9 +164,14 @@
 			
 \begin{frame}
 	\frametitle{Replika typu 3}
+		\begin{block}{Redundancja}
+			Replika typu 3 obsługuje dedykowany podfolder dla sum kontrolnych
+		\end{block}
 	\begin{columns}
 		\column{0.4\textwidth}
-		Lorem ipsum
+		\begin{itemize}
+			\item Detekcja błędów; porównanie sum kontrolnych
+		\end{itemize}
 		\column{0.6\textwidth}
 		\begin{figure}
 			\includegraphics[scale=0.1]{raid-3.png}
@@ -179,6 +209,20 @@
 	\begin{frame}
 		\frametitle{Konfiguracja oraz komunikacja}
 
+	\end{frame}
+
+	\begin{frame}
+		\frametitle{Ulepszenia}
+		\begin{itemize}
+			\item Kolejne warstwy
+			\item Usprawnienie działania
+			\begin{itemize}
+				\item Wykorzystanie wywołań niskiego poziomu FUSE
+				\item Optymalizacja zastosowanych operacji
+			\end{itemize}
+			\item Implementacja całej funkcjonalności systemu plików dla pozostałych warstw
+			\item Pełna niewidoczność działania systemu dla użytkownika
+		\end{itemize}
 	\end{frame}
 
 \end{document}
