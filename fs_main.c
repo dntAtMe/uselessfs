@@ -13,13 +13,13 @@
 
 #include "log.h"
 
-char src1[]="/home/dntAtMe/code/fuse/uselessfs/test";
-char src2[]="/home/dntAtMe/code/fuse/uselessfs/test2";
+char src1[]="/home/kwik/Code/uselessfs/workspace/replica1";
+char src2[]="/home/kwik/Code/uselessfs/workspace/replica2";
 int file_handlers[2];
 
 const char* sources[] = {
-    "/home/dntAtMe/code/fuse/uselessfs/test",
-    "/home/dntAtMe/code/fuse/uselessfs/test2",
+    "/home/kwik/Code/uselessfs/workspace/replica1",
+    "/home/kwik/Code/uselessfs/workspace/replica2",
 };
 
 char *xlate(const char *fname, const char *rpath)
@@ -205,18 +205,52 @@ static int do_release(const char *path, struct fuse_file_info *fi)
 }
 
 
-//RAID-2 zabity; wymaga zapisywania bitów, kiedy system plików odczyta z 4kb, minimalny rozmiar pliku
+char getBit(char byte, int bit)
+{
+    return (byte >> bit) % 2;
+}
+
+//RAID-2 zabity; wymaga zapisywania bitów, useless kiedy system plików odczyta z 4kb
 static int do_write(const char *path, const char *buf, size_t size,
 		    off_t offset, struct fuse_file_info *fi)
 {
     log_debug("[do_write] Running ");
     log_debug("[do_write] %s %d", path,file_handlers[0]);
+    
+    char* parity_buf = (char*) calloc(size, 1);
+    
+    for (int i=0;i<size;i++)
+    {
+        char p0, p1, p2, p3;
+        char current_byte = buf[i];
+
+        p0 = getBit(current_byte, 0) ^ getBit(current_byte, 1) ^ getBit(current_byte, 3) ^
+             getBit(current_byte, 4) ^ getBit(current_byte, 6);
+        p1 = getBit(current_byte, 0) ^ getBit(current_byte, 2) ^ getBit(current_byte, 3) ^
+             getBit(current_byte, 5) ^ getBit(current_byte, 6);
+        p2 = getBit(current_byte, 1) ^ getBit(current_byte, 2) ^ getBit(current_byte, 3) ^
+             getBit(current_byte, 7);
+        p3 = getBit(current_byte, 4) ^ getBit(current_byte, 5) ^ getBit(current_byte, 6) ^
+             getBit(current_byte, 7);
+
+        parity_buf[i/2] <<= 1;
+        parity_buf[i/2] |= p3;
+        parity_buf[i/2] <<= 1;
+        parity_buf[i/2] |= p2;
+        parity_buf[i/2] <<= 1;
+        parity_buf[i/2] |= p1;
+        parity_buf[i/2] <<= 1;
+        parity_buf[i/2] |= p0;
+
+    }
+    
 //P0 = D0 + D1 + D3 + D4 + D6
 //P1 = D0 + D2 + D3 + D5 + D6
 //P2 = D1 + D2 + D3 + D7
 //P3 = D4 + D5 + D6 + D7
     char *letter = "a";
     char p0, p1, p2, p3;
+    // xor
     p0 = ((*letter) % 2 + ((*letter) >> 1) % 2 + ((*letter) >> 3) % 2 + ((*letter) >> 4) % 2 + ((*letter) >> 6) % 2 ) %2;
     p1 = ((*letter) % 2 + ((*letter) >> 2) % 2 + ((*letter) >> 3) % 2 + ((*letter) >> 5) % 2 + ((*letter) >> 6) % 2 ) %2;
     p2 = (((*letter) >> 1) % 2 + ((*letter) >> 2) % 2 + ((*letter) >> 3) % 2 + ((*letter) >> 7) % 2 ) %2;
@@ -235,9 +269,9 @@ static int do_write(const char *path, const char *buf, size_t size,
     out |= p1;
     out <<= 1;
     out |= p0;
-    log_debug("[do_write] p0: %d p1: %d p2: %d p3: %d, out: %d", (int) p0, (int) p1, (int) p2, (int) p3, (int) out);
+    log_debug("buf: %s parity_buf: %s", buf, parity_buf);
     pwrite(file_handlers[0], buf, size, offset);
-    pwrite(file_handlers[1], &out, 1, offset);
+    pwrite(file_handlers[1], parity_buf, size/2, offset);
     return 0;
 }
 

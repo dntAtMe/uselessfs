@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.20 (TeX Live 2019) (preloaded format=pdflatex 2019.12.3)  4 DEC 2019 05:58
+This is pdfTeX, Version 3.14159265-2.6-1.40.20 (TeX Live 2019) (preloaded format=pdflatex 2019.12.3)  5 DEC 2019 16:20
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -846,18 +846,18 @@ Dictionary: translator-theorem-dictionary, Language: English
 {/usr/share/texlive/texmf-dist/fonts/map/pdftex/updmap/pdftex.map}] [2
 
 ]
-LaTeX Font Info:    Try loading font information for U+msa on input line 52.
+LaTeX Font Info:    Try loading font information for U+msa on input line 51.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Try loading font information for U+msb on input line 52.
+LaTeX Font Info:    Try loading font information for U+msb on input line 51.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
 LaTeX Font Info:    Try loading font information for OT1+mathkerncmss on input 
-line 52.
+line 51.
 
 (/usr/share/texlive/texmf-dist/tex/latex/sansmathaccent/ot1mathkerncmss.fd
 File: ot1mathkerncmss.fd 2013/03/27 Fontinst v1.933 font definitions for OT1/ma
@@ -895,7 +895,7 @@ thkerncmss.
 <raid-0.png, id=463, 120.45pt x 185.69376pt>
 File: raid-0.png Graphic file (type png)
 <use raid-0.png>
-Package pdftex.def Info: raid-0.png  used on input line 114.
+Package pdftex.def Info: raid-0.png  used on input line 126.
 (pdftex.def)             Requested size: 60.22484pt x 92.84665pt.
  [17
 
@@ -903,7 +903,7 @@ Package pdftex.def Info: raid-0.png  used on input line 114.
 <raid-1.png, id=492, 770.88pt x 1186.4325pt>
 File: raid-1.png Graphic file (type png)
 <use raid-1.png>
-Package pdftex.def Info: raid-1.png  used on input line 126.
+Package pdftex.def Info: raid-1.png  used on input line 145.
 (pdftex.def)             Requested size: 69.3762pt x 106.7743pt.
  [18
 
@@ -911,7 +911,7 @@ Package pdftex.def Info: raid-1.png  used on input line 126.
 <raid-2.png, id=520, 1284.8pt x 642.4pt>
 File: raid-2.png Graphic file (type png)
 <use raid-2.png>
-Package pdftex.def Info: raid-2.png  used on input line 138.
+Package pdftex.def Info: raid-2.png  used on input line 163.
 (pdftex.def)             Requested size: 128.48752pt x 64.24376pt.
  [19
 
@@ -919,7 +919,7 @@ Package pdftex.def Info: raid-2.png  used on input line 138.
 <raid-3.png, id=549, 1204.5pt x 892.33376pt>
 File: raid-3.png Graphic file (type png)
 <use raid-3.png>
-Package pdftex.def Info: raid-3.png  used on input line 150.
+Package pdftex.def Info: raid-3.png  used on input line 180.
 (pdftex.def)             Requested size: 120.45705pt x 89.2386pt.
  [20
 
@@ -927,7 +927,7 @@ Package pdftex.def Info: raid-3.png  used on input line 150.
 <raid-5.png, id=578, 677.53125pt x 501.875pt>
 File: raid-5.png Graphic file (type png)
 <use raid-5.png>
-Package pdftex.def Info: raid-5.png  used on input line 162.
+Package pdftex.def Info: raid-5.png  used on input line 192.
 (pdftex.def)             Requested size: 135.50385pt x 100.37321pt.
  [21
 
@@ -939,6 +939,8 @@ Package pdftex.def Info: raid-5.png  used on input line 162.
 
 ] [25
 
+] [26
+
 ]
 \tf@nav=\write6
 \openout6 = `presentation.nav'.
@@ -949,22 +951,22 @@ Package pdftex.def Info: raid-5.png  used on input line 162.
 \tf@snm=\write8
 \openout8 = `presentation.snm'.
 
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 184.
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 184.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 228.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 228.
  (./presentation.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 184.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 184.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 228.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 228.
 Package rerunfilecheck Info: File `presentation.out' has not changed.
 (rerunfilecheck)             Checksum: 6A37609A1DAD383A6A97672900DFDD10;98.
  ) 
 Here is how much of TeX's memory you used:
- 17673 strings out of 493760
- 335642 string characters out of 6154272
- 415091 words of memory out of 5000000
+ 17675 strings out of 493760
+ 335661 string characters out of 6154272
+ 415092 words of memory out of 5000000
  20947 multiletter control sequences out of 15000+600000
  17277 words of font info for 49 fonts, out of 8000000 for 9000
  430 hyphenation exceptions out of 8191
- 56i,15n,59p,798b,572s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 56i,15n,59p,798b,751s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/share/texlive/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}</usr
 /share/texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msam7.pfb></usr/s
 hare/texlive/texmf-dist/fonts/type1/public/cm-super/sfss0600.pfb></usr/share/te
@@ -972,10 +974,10 @@ xlive/texmf-dist/fonts/type1/public/cm-super/sfss1000.pfb></usr/share/texlive/t
 exmf-dist/fonts/type1/public/cm-super/sfss1095.pfb></usr/share/texlive/texmf-di
 st/fonts/type1/public/cm-super/sfss1200.pfb></usr/share/texlive/texmf-dist/font
 s/type1/public/cm-super/sfss1440.pfb>
-Output written on presentation.pdf (25 pages, 385757 bytes).
+Output written on presentation.pdf (26 pages, 393027 bytes).
 PDF statistics:
- 746 PDF objects out of 1000 (max. 8388607)
- 684 compressed objects within 7 object streams
- 53 named destinations out of 1000 (max. 500000)
+ 774 PDF objects out of 1000 (max. 8388607)
+ 710 compressed objects within 8 object streams
+ 55 named destinations out of 1000 (max. 500000)
  114 words of extra memory for PDF output out of 10000 (max. 10000000)
 

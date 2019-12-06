@@ -2,16 +2,50 @@
 \thispagestyle{chapterBeginStyle}
 \label{rozdzial1}
 
-W tym rozdziale należy przedstawić analizę zagadnienia, które podlega informatyzacji. Należy zidentyfikować i opisać obiekty składowe rozważanego wycinka rzeczywistości i ich wzajemne relacje (np.\ użytkowników systemu i ich role). Należy szczegółowo omówić procesy jakie zachodzą w systemie i które będą informatyzowane, takie jak np.\ przepływ dokumentów.
-Należy sprecyzować i wypunktować założenia funkcjonalne i poza funkcjonalne dla projektowanego systemu.
-Jeśli istnieją aplikacje realizujące dowolny podzbiór zadanych funkcjonalności realizowanego systemu należy przeprowadzić ich analizę porównawczą, wskazując na różnice bądź innowacyjne elementy, które projektowany w pracy system informatyczny będzie zawierał.
-Należy odnieść się do uwarunkowań prawnych związanych z procesami przetwarzania danych w projektowanym systemie.
-Jeśli zachodzi konieczność, należy wprowadzić i omówić model matematyczny elementów systemu na odpowiednim poziomie abstrakcji.
-
+Analiza problemu
+---------------------------------
+W tym rozdziale należy przedstawić analizę zagadnienia, które podlega informatyzacji. Należy zidenty-
+fikować i opisać obiekty składowe rozważanego wycinka rzeczywistości i ich wzajemne relacje (np. użytkown-
+ików systemu i ich role). Należy szczegółowo omówić procesy jakie zachodzą w systemie i które będą infor-
+matyzowane, takie jak np. przepływ dokumentów. Należy sprecyzować i wypunktować założenia funkcjon-
+alne i poza funkcjonalne dla projektowanego systemu. Jeśli istnieją aplikacje realizujące dowolny podzbiór
+zadanych funkcjonalności realizowanego systemu należy przeprowadzić ich analizę porównawczą, wskazując na
+różnice bądź innowacyjne elementy, które projektowany w pracy system informatyczny będzie zawierał. Należy
+odnieść się do uwarunkowań prawnych związanych z procesami przetwarzania danych w projektowanym sys-
+temie. Jeśli zachodzi konieczność, należy wprowadzić i omówić model matematyczny elementów systemu na
+odpowiednim poziomie abstrakcji.
 {\color{dgray}
 W niniejszym rozdziale omówiono koncepcję architektury programowej systemu \ldots. W
 szczególny sposób \ldots. Omówiono założenia funkcjonalne i niefunkcjonalne podsystemów \ldots. Przedstawiono
 mechanizmy \ldots. Sklasyfikowano systemy ze względu na \ldots. Omówiono istniejące rozwiązania informatyczne o podobnej funkcjonalności \ldots (zobacz \cite{JCINodesChord}).
+
+-Omowienie sposobow redundancji danych -RAID -Istniejace rozwiazania -Wybrane rozwiazania
+-Problem rozbijania danych -Problem wielu replik -Problem synchronizacji -Problem obsługi pełnej funkcjon-
+alności, np. softlinks
+Założenia: -Rodzaj wykorzystywanego sposobu redundacji niewidoczny dla uzytkownika -Uzytkownik nie
+martwi sie replikami poza wyjatkowymi sytuacjami: synchronizacja replik przy zamontowaniu, zatwierdzenie
+korekty
 }
+
+\begin{itemize}
+	\item Obsługa kilku różnych rozwiązań redundancji
+    \item Obsługa wielu replik dla większego bezpieczeństwa danych 
+	\item Synchronizacja istniejących danych pomiędzy replikami przy zamontowaniu systemu plików
+	\item Obsługa przynajmniej podstawowych zachowań systemu plików:
+		\begin{itemize}
+			\item Czytanie oraz pisanie do plików
+			\item Tworzenie oraz usuwanie plików
+		\end{itemize}
+	\item Detekcja błędów:
+		\begin{itemize}
+			\item Sprawdzanie, czy pliki, na których dokonywane są operacje, nie są uszkodzone
+			\item Sprawdzanie synchronizacji danych między replikami
+		\end{itemize}
+	\item Korekcja błędów:
+		\begin{itemize}
+			\item Zastosowanie kodów korekcyjnych
+			\item Całkowite zastępowanie uszkodzonych danych replikami
+		\end{itemize}
+\end{itemize}
 
 
