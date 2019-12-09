@@ -1,13 +1,17 @@
 \chapter{Implementacja systemu}
 \thispagestyle{chapterBeginStyle}
+W niniejszym rozdziale przedstawiono szczegóły implementacyjne zaproponowanych rozwiązań. Kompletny kod źródłowy wraz z komentarzami znajduje się w załączniku do pracy.
 
 \section{Opis technologii}
 
-Należy tutaj zamieścić krótki opis (z referencjami) do technologii użytych przy implementacji systemu.
+System plików implementujący całą funkcjonalność przedstawionego systemu wykorzystuje Filesystem in Userspace. Interfejs FUSE umożliwia tworzenie systemów plików w przestrzeni użytkownika. Bez schodzenia do poziomu kodu jądra systemu, interfejs ten pozwala skupić się na żądanej funkcjonalności.
 
-{\color{dgray}
-Do implementacji systemu użyto języka JAVA w wersji \ldots, szczegółowy opis można znaleźć w \cite{Java}. Interfejs zaprojektowano w oparciu o HTML5 i CSS3 \cite{HTML-CSS}.
-}
+FUSE jest wykorzystywany do tworzenia wirtualnych systemów plików (dalej nazywanych VFS). Niniejszy projekt jest klasyfikowany jako VFS, co ma znaczenie w dalszej części pracy.
+
+\section{Podział systemu na moduły}
+System plików został zaimplementowany z myślą i dalszym rozwoju projektu. Każda istniejąca replika może być zamontowana jako osobny system plików, główny moduł stanowi połączenie między tymi replikami. Dzięki temu rozwiązaniu, działanie całego systemu jest niezależne od zastosowanych rozwiązań redundancji.
+
+\textit{obrazki}
 
 \section{Omówienie kodów źródłowych}
 

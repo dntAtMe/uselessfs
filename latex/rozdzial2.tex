@@ -1,6 +1,6 @@
 \chapter{Projekt systemu}
 \thispagestyle{chapterBeginStyle}
-
+Dla uproszczenia tylko pliki tekstowe, wiec raczej operacje na bajtach
 {\color{dgray}
 W tym rozdziale przedstawiono szczegółowy projekt systemy w notacji UML uwzględniający wymagania funkcjonalne opisane w rozdziale~\ref{rozdzial1}. Do opisu relacji pomiędzy składowymi systemu wykorzystano diagramy \ldots.
 Przedstawiono w pseudokodzie i omówiono algorytmy generowania \ldots.
@@ -16,27 +16,179 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
 } 
 
 \section{Przypadki użycia i scenariusze}
+\subsection{Montowanie systemu plików}
+\begin{table}[h!]
+        \centering
+        \begin{tabular}{ |l|p{10cm}| }
+                \hline
+            S01 & Montowanie systemu plików \\ \hline
+            Aktor & Użytkownik \\ \hline
+            Warunki wsępne & Aktor przygotował konfigurację systemu \\ \hline
+            Przebieg wydarzeń & \textbullet Aktor montuje system, podając plik konfiguracyjny \newline \newline 
+            \textbullet System odczytuje konfigurację \newline \newline 
+            \textbullet System dostosowuje parametry i montuje system plików \\ \hline
+            Alternatywny przebieg wydarzeń & \textbullet Aktor konfiguruje system przez argumenty wywołania \\ \hline
+            Sytuacje wyjątkowe & \textbullet Aktor podał niepoprawną konfigurację \newline \newline
+            \textbullet Katalogi podane przez aktora nie istnieją lub są niepoprawne \\ \hline
+            Warunki końcowe & System plików jest poprawnie zamontowany pod podanym katalogiem \\ \hline
+        \end{tabular}
+        \caption{Montowanie systemu plików}
+\end{table}
+\newpage
 
-W tej sekcji należy przedstawić przypadki użycia oraz odpowiadające im scenariusze dla poszczególnych grup użytkowników \ldots.
+\subsection{Odczyt pliku}
+\begin{table}[h!]
+        \centering
+        \begin{tabular}{ |l|p{10cm}| }
+                \hline
+            S02.1 & Odczyt pliku przy wykorzystaniu pojedynczej repliki korekcyjnej \\ \hline
+            Aktor & Użytkownik \\ \hline
+            Warunki wsępne & System plików jest zamontowany, replika wspiera korekcję błędów \\ \hline
+            Przebieg wydarzeń & 
+            1. Aktor podaje plik do odczytu \newline \newline 
+            2. System sprawdza spójność pliku w replice \newline \newline 
+            3. System dokonuje korekty istniejących uszkodzeń pliku przed odczytem danych \newline \newline
+            4. Aktor dostaje odczytane dane \\ \hline
+            Alternatywny przebieg wydarzeń & 
+            3. System nie może dokonać korekty błędów  \newline \newline
+            4. Aktor zostaje poinformowany o błędzie przez \newline \newline
+            5. Aktor dostaje odczytane dane\\ \hline
+            Sytuacje wyjątkowe & \textbullet Dany plik nie istnieje w replice  \newline \newline
+            \textbullet Nieudany odczyt pliku \newline \newline
+            \textbullet Dysk z repliką został odmontowany lub uszkodzony \\ \hline
+            Warunki końcowe & System zwrócił aktorowi odczytane dane \\ \hline
+        \end{tabular}
+        \caption{Odczyt pliku przy wykorzystaniu pojedynczej repliki korekcyjnej}
+\end{table}
+
+\begin{table}[h!]
+        \centering
+        \begin{tabular}{ |l|p{10cm}| }
+                \hline
+            S02.2 & Odczyt pliku przy wykorzystaniu pojedynczej repliki bez korekty danych  \\ \hline
+            Aktor & Użytkownik \\ \hline
+            Warunki wsępne & System plików jest zamontowany, replika nie wspiera korekty błędów \\ \hline
+            Przebieg wydarzeń & 
+            1. Aktor podaje plik do odczytu \newline \newline 
+            2. System sprawdza spójność pliku w replice \newline \newline
+            3. System informuje o znalezionych błędach \newline \newline
+            4. Aktor dostaje odczytane dane \\ \hline
+            Alternatywny przebieg wydarzeń & 
+            Brak\\ \hline
+            Sytuacje wyjątkowe & \textbullet Dany plik nie istnieje w replice  \newline \newline
+            \textbullet Błąd oczytu \newline \newline
+            \textbullet Dysk z repliką został odmontowany lub uszkodzony \\ \hline
+            Warunki końcowe & System zwrócił aktorowi odczytane dane \\ \hline
+        \end{tabular}
+        \caption{Odczyt pliku przy wykorzystaniu pojedynczej repliki bez korekty}
+\end{table}
+
+\newpage
+\begin{table}[h!]
+        \centering
+        \begin{tabular}{ |l|p{10cm}| }
+                \hline
+            S02.1 & Odczyt pliku przy wykorzystaniu pojedynczej repliki korekcyjnej \\ \hline
+            Aktor & Użytkownik \\ \hline
+            Warunki wsępne & System plików jest zamontowany, replika wspiera korekcję błędów \\ \hline
+            Przebieg wydarzeń & 
+            1. Aktor podaje plik do odczytu \newline \newline 
+            2. System sprawdza spójność pliku w replice \newline \newline 
+            3. System dokonuje korekty istniejących uszkodzeń pliku przed odczytem danych \newline \newline
+            4. Aktor dostaje odczytane dane \\ \hline
+            Alternatywny przebieg wydarzeń & 
+            3. System nie może dokonać korekty błędów  \newline \newline
+            4. Aktor zostaje poinformowany o błędzie przez \newline \newline
+            5. Aktor dostaje odczytane dane\\ \hline
+            Sytuacje wyjątkowe & \textbullet Dany plik nie istnieje w replice  \newline \newline
+            \textbullet Nieudany odczyt pliku \newline \newline
+            \textbullet Dysk z repliką został odmontowany lub uszkodzony \\ \hline
+            Warunki końcowe & System zwrócił aktorowi odczytane dane \\ \hline
+        \end{tabular}
+        \caption{Odczyt pliku przy wykorzystaniu pojedynczej repliki korekcyjnej}
+\end{table}
+
+\begin{table}[h!]
+        \centering
+        \begin{tabular}{ |l|p{10cm}| }
+                \hline
+            S02.2 & Odczyt pliku przy wykorzystaniu pojedynczej repliki bez korekty danych  \\ \hline
+            Aktor & Użytkownik \\ \hline
+            Warunki wsępne & System plików jest zamontowany, replika nie wspiera korekty błędów \\ \hline
+            Przebieg wydarzeń & 
+            1. Aktor podaje plik do odczytu \newline \newline 
+            2. System sprawdza spójność pliku w replice \newline \newline
+            3. System informuje o znalezionych błędach \newline \newline
+            4. Aktor dostaje odczytane dane \\ \hline
+            Alternatywny przebieg wydarzeń & 
+            Brak\\ \hline
+            Sytuacje wyjątkowe & \textbullet Dany plik nie istnieje w replice  \newline \newline
+            \textbullet Błąd oczytu \newline \newline
+            \textbullet Dysk z repliką został odmontowany lub uszkodzony \\ \hline
+            Warunki końcowe & System zwrócił aktorowi odczytane dane \\ \hline
+        \end{tabular}
+        \caption{Odczyt pliku przy wykorzystaniu pojedynczej repliki bez korekty}
+\end{table}
+
+\newpage
+
+
+\subsection{Zapis pliku}
+\begin{table}[h!]
+        \centering
+        \begin{tabular}{ |l|p{10cm}| }
+                \hline
+            S02.1 & Odczyt pliku przy wykorzystaniu pojedynczej repliki korekcyjnej \\ \hline
+            Aktor & Użytkownik \\ \hline
+            Warunki wsępne & System plików jest zamontowany, replika wspiera korekcję błędów \\ \hline
+            Przebieg wydarzeń & 
+            1. Aktor podaje plik do odczytu \newline \newline 
+            2. System sprawdza spójność pliku w replice \newline \newline 
+            3. System dokonuje korekty istniejących uszkodzeń pliku przed odczytem danych \newline \newline
+            4. Aktor dostaje odczytane dane \\ \hline
+            Alternatywny przebieg wydarzeń & 
+            3. System nie może dokonać korekty błędów  \newline \newline
+            4. Aktor zostaje poinformowany o błędzie przez \newline \newline
+            5. Aktor dostaje odczytane dane\\ \hline
+            Sytuacje wyjątkowe & \textbullet Dany plik nie istnieje w replice  \newline \newline
+            \textbullet Nieudany odczyt pliku \newline \newline
+            \textbullet Dysk z repliką został odmontowany lub uszkodzony \\ \hline
+            Warunki końcowe & System zwrócił aktorowi odczytane dane \\ \hline
+        \end{tabular}
+        \caption{Odczyt pliku przy wykorzystaniu pojedynczej repliki korekcyjnej}
+\end{table}
+
+\begin{table}[h!]
+        \centering
+        \begin{tabular}{ |l|p{10cm}| }
+                \hline
+            S02.2 & Odczyt pliku przy wykorzystaniu pojedynczej repliki bez korekty danych  \\ \hline
+            Aktor & Użytkownik \\ \hline
+            Warunki wsępne & System plików jest zamontowany, replika nie wspiera korekty błędów \\ \hline
+            Przebieg wydarzeń & 
+            1. Aktor podaje plik do odczytu \newline \newline 
+            2. System sprawdza spójność pliku w replice \newline \newline
+            3. System informuje o znalezionych błędach \newline \newline
+            4. Aktor dostaje odczytane dane \\ \hline
+            Alternatywny przebieg wydarzeń & 
+            Brak\\ \hline
+            Sytuacje wyjątkowe & \textbullet Dany plik nie istnieje w replice  \newline \newline
+            \textbullet Błąd oczytu \newline \newline
+            \textbullet Dysk z repliką został odmontowany lub uszkodzony \\ \hline
+            Warunki końcowe & System zwrócił aktorowi odczytane dane \\ \hline
+        \end{tabular}
+        \caption{Odczyt pliku przy wykorzystaniu pojedynczej repliki bez korekty}
+\end{table}
+\
+\newpage
+
+
 
 \section{Diagramy klas}
 
 W tej sekcji należy przedstawić diagramy klas dla odpowiednich elementów systemu zidentyfikowane na podstawie wcześniejszych rozważań 
 
-\section{Diagramy aktywności}
 
-W tej sekcji należy przedstawić diagramy aktywności dla elementów systemu i odpowiednich procesów wynikające z wcześniejszej analizy.  
-
-{\color{dgray}
-W niniejszym rozdziale przedstawiono diagramy aktywności \ldots. Diagram na rysunku~\ref{czynnosci_GD} przedstawia \ldots.
-} 
-
-\begin{figure}[h!]
-\begin{center}
-\includegraphics[width=0.5\textwidth]{aktyw.pdf}
-\end{center}
-\caption{{\color{dgray}Diagram aktywności związany z procesem rejestracji dokumentu.}} \label{czynnosci_GD}
-\end{figure}  
 
 \section{Diagramy sekwencji}
 
