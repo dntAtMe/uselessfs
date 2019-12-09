@@ -47,6 +47,37 @@ korekty
 			\item Zastosowanie kodów korekcyjnych
 			\item Całkowite zastępowanie uszkodzonych danych replikami
 		\end{itemize}
+    \item Wygoda uzytkowania
 \end{itemize}
 
+\section {Redundancja danych}
+Redundancja danych stanowi najwazniejsze zagadnienie rozwazanej pracy. Zaproponowano kilka roznych rozwiazan, aby przedstawic pozadany zakres mozliwosci systemu. Rozwiazania oparte sa na macierzy RAID ze wzgledu na ich skutecznosc oraz mozliwosc tworzenia kombinacji standardowych poziomow.
 
+\subsection {RAID}
+Redundant Array of Independent Disks to metoda wirtualizacji przechowywania danych. Wykorzystuje wiele dyskow i laczy je w logiczne jednostki pamieci. RAID jest stosowane do redundancji danych oraz lepszej wydajnosci, jednak w niniejszej pracy wydajnosc systemu nie bedzie rozwazana.  
+RAID jest zbiorem schematow rozwiazan, ktore nazywane sa poziomami. Na potrzeby pracy przedstawione zostana wybrane poziomy, ktore wprowadzaja rozne metody redundancji.
+\subsubsection{Poziom 0}
+\subsubsection{Poziom 1}
+\subsubsection{Poziom 2}
+\subsubsection{Poziom 4}
+\subsubsection{Poziom 5}
+\subsubsection{Poziom 6}
+
+\subsection{Repliki systemu}
+Repliki zostaly zaprojektowane na podstawie poziomow RAID. Roznia sie miedzy soba sposobem wprowadzenia redundancji danych oraz mozliwym zastosowaniem. Ponizej opisano proponowane rodzaje replik oraz rozwazono ich mocne i slabe strony. Wszystkie rodzaje mozna podzielic na dwie kategorie:
+\begin{itemize}
+    \item Replika bez korekty - Dokonuje detekcji bledow w plikach, jednak w przypadku wykrycia takiego bledu lub desynchronizacji z innymi replikami, nie jest w stanie dokonac korekty bledow bez dodatkowych replik
+    \item Replika korekcyjna - Dokonuje zarowno detekcji, jak i korekcji znalezionych bledow. Jesli korekta znalezionych bledow jest niemozliwa, zachowuje sie podobnie do repliki bez korekty - desynchronizacja moze zostac naprawiona wylacznia z dodatkowymi replikami
+\end{itemize}
+\subsubsection{Repliki Lustrzane (MR)}
+
+
+\subsubsection{Repliki korekcyjne}
+
+\subsection{Podzial replik na warstwy}
+
+\section {Synchronizacja replik}
+
+\section {Dzialanie systemu plikow}
+
+\section {Wygoda uzytkowania}
