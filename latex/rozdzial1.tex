@@ -63,18 +63,44 @@ RAID jest zbiorem schematow rozwiazan, ktore nazywane sa poziomami. Na potrzeby 
 \subsubsection{Poziom 5}
 \subsubsection{Poziom 6}
 
-\subsection{Repliki systemu}
+\subsection{Standardowe repliki systemu}
 Repliki zostaly zaprojektowane na podstawie poziomow RAID. Roznia sie miedzy soba sposobem wprowadzenia redundancji danych oraz mozliwym zastosowaniem. Ponizej opisano proponowane rodzaje replik oraz rozwazono ich mocne i slabe strony. Wszystkie rodzaje mozna podzielic na dwie kategorie:
 \begin{itemize}
-    \item Replika bez korekty - Dokonuje detekcji bledow w plikach, jednak w przypadku wykrycia takiego bledu lub desynchronizacji z innymi replikami, nie jest w stanie dokonac korekty bledow bez dodatkowych replik
+    \item Replika standardowa - Dokonuje detekcji bledow w plikach, jednak w przypadku wykrycia takiego bledu lub desynchronizacji z innymi replikami, nie jest w stanie dokonac korekty bledow bez dodatkowych replik
     \item Replika korekcyjna - Dokonuje zarowno detekcji, jak i korekcji znalezionych bledow. Jesli korekta znalezionych bledow jest niemozliwa, zachowuje sie podobnie do repliki bez korekty - desynchronizacja moze zostac naprawiona wylacznia z dodatkowymi replikami
 \end{itemize}
+Repliki korekcyjne dodają funkcjonalność do standardowej, dlatego zostały omówione w późniejszej sekcji pracy. 
+
 \subsubsection{Repliki Lustrzane (MR)}
+Repliki tego typu stanowią lustrzane odbicie danych. Funkcjonalność takie systemu jest równa systemowi nadrzędnemu. 
+\begin{itemize}
+        \item Naprawia błędy innych replik kopiując całe pliki
+        \item Wszystkie dane zamontowane w jednym miejscu. W przypadku, kiedy jeden dysk zostanie uszkodzony, dane zostają utracone.
+\end{itemize}
+Standardowe MR nie są w stanie naprawić uszkodzonych plików. Jedynym rozwiązaniem jest zastąpić uszkodzone pliki w całości danymi z innej repliki. Niestandardowymi MR nazywa się repliki lustrzane z korektą błędów.
 
-
-\subsubsection{Repliki korekcyjne}
+\subsubsection{Repliki Blokowe (BR)}
+W replikach tego typu pliki są rozkładane na części i zapisywane w kolejnych katalogach będących odpowiednikiem dysków poziomu RAID-0. Tak samo katalogi mogą być rozmieszczone na różnych urządzeniach przechowujących. Każdy z katalogów może również być repliką. Jedna część pliku nazywana jest dalej blokiem.
+Rozkład danych jest możliwy na dwa sposoby:
+\begin{itemize}
+    \item Pliki podzielone na stałą ilość części o zmiennych wielkościach. 
+    \item Pliki podzielone na zmienną ilość części o ograniczonych wielkościach
+\end{itemize}
+Standardowe BR nie są w stanie naprawić uszkodzonych plików, jednak taki podział danych działa korzystnie na korekcję błędów i jest szczególnie przydatny dla wielu dysków.
+\begin{itemize}
+    \item Naprawia błędy innych replik kopiując jedynie częściowe pliki, jeśli to możliwe.
+    \item Dane mogą zostać zamontowane w wielu miejscach. W przypadku uszkodzenia jednego dysku, reszta danych jest nadal dostępna.
+\end{itemize}
 
 \subsection{Podzial replik na warstwy}
+
+\section {Korekcja błędów}
+
+\subsection{Repliki korekcyjne}
+
+Dodanie metod korekcji błędów w replikach BR umożliwi odzyskiwanie całych bloków. W przypadku uszkodzonego dysku, repliki BR mogą być w stanie zmienić lokalizację odzyskanego bloku lub zmienić sposób, w jaki dzielą dane. To znaczy, że jeśli replika blokowa działa na n dyskach, działa również po awarii na n-1 dyskach dla n < 1.
+
+\section {Detekcja błędów}
 
 \section {Synchronizacja replik}
 
