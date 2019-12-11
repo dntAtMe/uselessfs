@@ -57,11 +57,45 @@ Redundancja danych stanowi najwazniejsze zagadnienie rozwazanej pracy. Zapropono
 Redundant Array of Independent Disks to metoda wirtualizacji przechowywania danych. Wykorzystuje wiele dyskow i laczy je w logiczne jednostki pamieci. RAID jest stosowane do redundancji danych oraz lepszej wydajnosci, jednak w niniejszej pracy wydajnosc systemu nie bedzie rozwazana.  
 RAID jest zbiorem schematow rozwiazan, ktore nazywane sa poziomami. Na potrzeby pracy przedstawione zostana wybrane poziomy, ktore wprowadzaja rozne metody redundancji.
 \subsubsection{Poziom 0}
+\begin{figure}[h!]
+        \centering
+        \includegraphics{raid-0.png}
+        \caption{RAID-0 z trzema dyskami}
+        \label{fig:raid0}
+\end{figure}
 \subsubsection{Poziom 1}
+\begin{figure}[h!]
+        \centering
+        \includegraphics{raid-1.png}
+        \caption{RAID-1 z trzema dyskami}
+        \label{fig:raid1}
+\end{figure}
 \subsubsection{Poziom 2}
+dupa
+\begin{figure}[h!]
+        \centering
+        \includegraphics{raid-2.png}
+        \caption{RAID-2 na siedmiu dyskach}
+        \label{fig:raid2}
+\end{figure}
 \subsubsection{Poziom 4}
+dupa
+\begin{figure}[h!]
+        \centering
+        \includegraphics{raid-4.png}
+        \caption{RAID-4 na trzech dyskach}
+        \label{fig:raid4}
+\end{figure}
 \subsubsection{Poziom 5}
+dupa
+\begin{figure}[h!]
+        \centering
+        \includegraphics{raid-5.png}
+        \caption{RAID-5 na trzech dyskach}
+        \label{fig:raid5}
+\end{figure}
 \subsubsection{Poziom 6}
+dupa
 
 \subsection{Standardowe repliki systemu}
 Repliki zostaly zaprojektowane na podstawie poziomow RAID. Roznia sie miedzy soba sposobem wprowadzenia redundancji danych oraz mozliwym zastosowaniem. Ponizej opisano proponowane rodzaje replik oraz rozwazono ich mocne i slabe strony. Wszystkie rodzaje mozna podzielic na dwie kategorie:
@@ -72,7 +106,7 @@ Repliki zostaly zaprojektowane na podstawie poziomow RAID. Roznia sie miedzy sob
 Repliki korekcyjne dodają funkcjonalność do standardowej, dlatego zostały omówione w późniejszej sekcji pracy. 
 
 \subsubsection{Repliki Lustrzane (MR)}
-Repliki tego typu stanowią lustrzane odbicie danych. Funkcjonalność takie systemu jest równa systemowi nadrzędnemu. 
+Oparte na schemacie RAID-1 repliki tego typu stanowią lustrzane odbicie danych. Funkcjonalność takie systemu jest równa systemowi nadrzędnemu. 
 \begin{itemize}
         \item Naprawia błędy innych replik kopiując całe pliki
         \item Wszystkie dane zamontowane w jednym miejscu. W przypadku, kiedy jeden dysk zostanie uszkodzony, dane zostają utracone.
@@ -83,10 +117,27 @@ Standardowe MR nie są w stanie naprawić uszkodzonych plików. Jedynym rozwiąz
 W replikach tego typu pliki są rozkładane na części i zapisywane w kolejnych katalogach będących odpowiednikiem dysków poziomu RAID-0. Tak samo katalogi mogą być rozmieszczone na różnych urządzeniach przechowujących. Każdy z katalogów może również być repliką. Jedna część pliku nazywana jest dalej blokiem.
 Rozkład danych jest możliwy na dwa sposoby:
 \begin{itemize}
-    \item Pliki podzielone na stałą ilość części o zmiennych wielkościach. 
+    \item Pliki podzielone na stałą ilość bloków o zmiennych wielkościach. 
+
+            Zmiana wielkości pliku może powodować zmianę rozmiaru wszystkich bloków danego pliku dla wyrównania wielkości, lub jedynie tego bloku, do którego dane zostają dopisane. W takim wypadku bloki nie są jednakowych rozmiarów.
+            \begin{figure}[h!]
+                    \centering
+                    \includegraphics{BR-1.png}
+                    \caption{Podział pliku na trzy nierówne bloki }
+                    \label{fig:br1}
+            \end{figure}
     \item Pliki podzielone na zmienną ilość części o ograniczonych wielkościach
+
+            Określony jest maksymalny dozwolony rozmiar dla pojedynczego bloku. Przy przekroczeniu rozmiaru bloku, system tworzy kolejny w następnym katalogu dopóki jest miejsce. 
+            \begin{figure}[h!]
+                    \centering
+                    \includegraphics{BR-2.png}
+                    \caption{Podzial pliku na wiele bloków ograniczonego rozmiaru}
+                    \label{fig:br1}
+            \end{figure}
+ 
 \end{itemize}
-Standardowe BR nie są w stanie naprawić uszkodzonych plików, jednak taki podział danych działa korzystnie na korekcję błędów i jest szczególnie przydatny dla wielu dysków.
+Standardowe BR nie są w stanie naprawić uszkodzonych plików, jednak taki podział danych wpłynie korzystnie na repliki korekcyjne i jest szczególnie przydatny dla wielu dysków.
 \begin{itemize}
     \item Naprawia błędy innych replik kopiując jedynie częściowe pliki, jeśli to możliwe.
     \item Dane mogą zostać zamontowane w wielu miejscach. W przypadku uszkodzenia jednego dysku, reszta danych jest nadal dostępna.
@@ -95,7 +146,8 @@ Standardowe BR nie są w stanie naprawić uszkodzonych plików, jednak taki podz
 \subsection{Podzial replik na warstwy}
 
 \section {Korekcja błędów}
-
+\subsection{Kod Hamminga}
+\subsection{Parzystość bloku}
 \subsection{Repliki korekcyjne}
 
 Dodanie metod korekcji błędów w replikach BR umożliwi odzyskiwanie całych bloków. W przypadku uszkodzonego dysku, repliki BR mogą być w stanie zmienić lokalizację odzyskanego bloku lub zmienić sposób, w jaki dzielą dane. To znaczy, że jeśli replika blokowa działa na n dyskach, działa również po awarii na n-1 dyskach dla n < 1.

@@ -65,7 +65,7 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
         \centering
         \begin{tabular}{ |l|p{10cm}| }
                 \hline
-            S02.2 & Odczyt pliku przy wykorzystaniu pojedynczej repliki bez korekty danych  \\ \hline
+            S02.2 & Odczyt pliku przy wykorzystaniu pojedynczej repliki standardowej  \\ \hline
             Aktor & Użytkownik \\ \hline
             Warunki wsępne & System plików jest zamontowany, replika nie wspiera korekty błędów \\ \hline
             Przebieg wydarzeń & 
@@ -80,7 +80,7 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
             \textbullet Dysk z repliką został odmontowany lub uszkodzony \\ \hline
             Warunki końcowe & System zwrócił aktorowi odczytane dane \\ \hline
         \end{tabular}
-        \caption{Odczyt pliku przy wykorzystaniu pojedynczej repliki bez korekty}
+        \caption{Odczyt pliku przy wykorzystaniu pojedynczej standardowej repliki}
 \end{table}
 
 \newpage
@@ -88,46 +88,23 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
         \centering
         \begin{tabular}{ |l|p{10cm}| }
                 \hline
-            S02.1 & Odczyt pliku przy wykorzystaniu pojedynczej repliki korekcyjnej \\ \hline
-            Aktor & Użytkownik \\ \hline
-            Warunki wsępne & System plików jest zamontowany, replika wspiera korekcję błędów \\ \hline
-            Przebieg wydarzeń & 
-            1. Aktor podaje plik do odczytu \newline \newline 
-            2. System sprawdza spójność pliku w replice \newline \newline 
-            3. System dokonuje korekty istniejących uszkodzeń pliku przed odczytem danych \newline \newline
-            4. Aktor dostaje odczytane dane \\ \hline
-            Alternatywny przebieg wydarzeń & 
-            3. System nie może dokonać korekty błędów  \newline \newline
-            4. Aktor zostaje poinformowany o błędzie przez \newline \newline
-            5. Aktor dostaje odczytane dane\\ \hline
-            Sytuacje wyjątkowe & \textbullet Dany plik nie istnieje w replice  \newline \newline
-            \textbullet Nieudany odczyt pliku \newline \newline
-            \textbullet Dysk z repliką został odmontowany lub uszkodzony \\ \hline
-            Warunki końcowe & System zwrócił aktorowi odczytane dane \\ \hline
-        \end{tabular}
-        \caption{Odczyt pliku przy wykorzystaniu pojedynczej repliki korekcyjnej}
-\end{table}
-
-\begin{table}[h!]
-        \centering
-        \begin{tabular}{ |l|p{10cm}| }
-                \hline
-            S02.2 & Odczyt pliku przy wykorzystaniu pojedynczej repliki bez korekty danych  \\ \hline
+            S02.4 & Odczyt pliku przy wykorzystaniu wielu replik\\ \hline
             Aktor & Użytkownik \\ \hline
             Warunki wsępne & System plików jest zamontowany, replika nie wspiera korekty błędów \\ \hline
             Przebieg wydarzeń & 
             1. Aktor podaje plik do odczytu \newline \newline 
-            2. System sprawdza spójność pliku w replice \newline \newline
-            3. System informuje o znalezionych błędach \newline \newline
+            2. System odczytuje plik z najlepszej repliki\newline \newline
+            3. System naprawia uszkodzenia odczytując dane z innych replik \newline \newline
             4. Aktor dostaje odczytane dane \\ \hline
             Alternatywny przebieg wydarzeń & 
-            Brak\\ \hline
+            4. Dane w replice nie zostały naprawione \newline \newline
+            5. System wyłącza replikę \\ \hline
             Sytuacje wyjątkowe & \textbullet Dany plik nie istnieje w replice  \newline \newline
             \textbullet Błąd oczytu \newline \newline
-            \textbullet Dysk z repliką został odmontowany lub uszkodzony \\ \hline
-            Warunki końcowe & System zwrócił aktorowi odczytane dane \\ \hline
+            \textbullet Replika jest jedyną działającą \\ \hline
+            Warunki końcowe & System zwrócił aktorowi odczytane dane i replika została naprawiona lub wyłączona \\ \hline
         \end{tabular}
-        \caption{Odczyt pliku przy wykorzystaniu pojedynczej repliki bez korekty}
+        \caption{Odczyt pliku przy wykorzystaniu wielu replik}
 \end{table}
 
 \newpage
@@ -138,49 +115,71 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
         \centering
         \begin{tabular}{ |l|p{10cm}| }
                 \hline
-            S02.1 & Odczyt pliku przy wykorzystaniu pojedynczej repliki korekcyjnej \\ \hline
+            S03.1 & Zapis pliku przy wykorzystaniu pojedynczej repliki korekcyjnej \\ \hline
             Aktor & Użytkownik \\ \hline
             Warunki wsępne & System plików jest zamontowany, replika wspiera korekcję błędów \\ \hline
             Przebieg wydarzeń & 
-            1. Aktor podaje plik do odczytu \newline \newline 
-            2. System sprawdza spójność pliku w replice \newline \newline 
-            3. System dokonuje korekty istniejących uszkodzeń pliku przed odczytem danych \newline \newline
-            4. Aktor dostaje odczytane dane \\ \hline
-            Alternatywny przebieg wydarzeń & 
-            3. System nie może dokonać korekty błędów  \newline \newline
-            4. Aktor zostaje poinformowany o błędzie przez \newline \newline
-            5. Aktor dostaje odczytane dane\\ \hline
-            Sytuacje wyjątkowe & \textbullet Dany plik nie istnieje w replice  \newline \newline
-            \textbullet Nieudany odczyt pliku \newline \newline
-            \textbullet Dysk z repliką został odmontowany lub uszkodzony \\ \hline
-            Warunki końcowe & System zwrócił aktorowi odczytane dane \\ \hline
+            1. Aktor podaje dane do zapisu \newline \newline 
+            2. System dopisuje dodatkowe informacje do korekcji \newline \newline 
+            3. System zapisuje do repliki \\ \hline
+            Alternatywny przebieg wydarzeń &
+            4. System nie może dopisać dodatkowych informacji  \newline \newline
+            5. System zwraca błąd zapisu \\ \hline
+            Sytuacje wyjątkowe & 
+            \textbullet Nieudany zapis pliku \newline \newline
+            \textbullet Dysk z repliką został odmontowany lub uszkodzony \newline \newline
+            \textbullet Brak miejsca na replice \\ \hline
+            Warunki końcowe & System zapisał dane podane przez aktora oraz informacje do korekcji \\ \hline
         \end{tabular}
-        \caption{Odczyt pliku przy wykorzystaniu pojedynczej repliki korekcyjnej}
+        \caption{Zapis pliku przy wykorzystaniu pojedynczej repliki korekcyjnej} 
 \end{table}
 
 \begin{table}[h!]
         \centering
         \begin{tabular}{ |l|p{10cm}| }
                 \hline
-            S02.2 & Odczyt pliku przy wykorzystaniu pojedynczej repliki bez korekty danych  \\ \hline
+                S03.2 & Zapis pliku przy wykorzystaniu pojedynczej repliki standardowej\\ \hline
             Aktor & Użytkownik \\ \hline
-            Warunki wsępne & System plików jest zamontowany, replika nie wspiera korekty błędów \\ \hline
+            Warunki wsępne & System plików jest zamontowany, replika nie wspiera korekcji błędów \\ \hline
             Przebieg wydarzeń & 
-            1. Aktor podaje plik do odczytu \newline \newline 
-            2. System sprawdza spójność pliku w replice \newline \newline
-            3. System informuje o znalezionych błędach \newline \newline
-            4. Aktor dostaje odczytane dane \\ \hline
-            Alternatywny przebieg wydarzeń & 
-            Brak\\ \hline
-            Sytuacje wyjątkowe & \textbullet Dany plik nie istnieje w replice  \newline \newline
-            \textbullet Błąd oczytu \newline \newline
-            \textbullet Dysk z repliką został odmontowany lub uszkodzony \\ \hline
-            Warunki końcowe & System zwrócił aktorowi odczytane dane \\ \hline
+            1. Aktor podaje dane do zapisu \newline \newline 
+            2. System zapisuje do repliki \\ \hline
+            Alternatywny przebieg wydarzeń &
+            3. System nie może zapisać do repliki  \newline \newline
+            4. System zwraca błąd zapisu \\ \hline
+            Sytuacje wyjątkowe & 
+            \textbullet Nieudany zapis pliku \newline \newline
+            \textbullet Dysk z repliką został odmontowany lub uszkodzony \newline \newline
+            \textbullet Brak miejsca na replice \\ \hline
+            Warunki końcowe & System zapisał dane podane przez aktora \\ \hline
         \end{tabular}
-        \caption{Odczyt pliku przy wykorzystaniu pojedynczej repliki bez korekty}
+        \caption{Zapis pliku przy wykorzystaniu pojedynczej repliki standardowej}
 \end{table}
-\
 \newpage
+
+\begin{table}[h!]
+        \centering
+        \begin{tabular}{ |l|p{10cm}| }
+                \hline
+            S03.3 & Zapis pliku przy wykorzystaniu wielu replik\\ \hline
+            Aktor & Użytkownik \\ \hline
+            Warunki wsępne & System plików jest zamontowany, wiele replik \\ \hline
+            Przebieg wydarzeń & 
+            1. Aktor podaje dane do zapisu \newline \newline 
+            2. System zapisuje dane do każdej repliki \newline \newline 
+            3. Każdy błąd zapisu wyłącza daną replikę\\ \hline
+            Alternatywny przebieg wydarzeń &
+            Brak \\ \hline
+            Sytuacje wyjątkowe & 
+            \textbullet Nieudany zapis pliku do każdej repliki\newline \newline
+            \textbullet Wszystkie repliki zostały wyłączone \newline \newline
+            \textbullet \\ \hline
+            Warunki końcowe & System zapisał dane podane przez aktora i są działające repliki\\ \hline
+        \end{tabular}
+        \caption{Zapis pliku przy wykorzystaniu wielu replik} 
+\end{table}
+\newpage
+
 
 
 

@@ -92,20 +92,20 @@
 \begin{frame}
 	\frametitle{Rozwiązanie}
 	\begin{block}{Definicja}
-		Replika duplikująca kopiuje chronione dane bez dodatkowych informacji
+            Repliki standardowe zapewniają redundancję, synchronizację oraz podział danych
 	\end{block}
 	\pause
 	\begin{block}{Definicja}
-		Replika blokowa rozdziela chronione dane na bloki zależne od wybranej implementacji; Może zawierać dodatkowe informacje potrzebne w przypadku uszkodzenia
-	\end{block}
+	        Repliki korecyjne zapewniają korekcję błędów oraz więcej sposobów ich detekcji.
+    \end{block}
 \end{frame}
 
 \begin{frame}
-	\frametitle{Replika typu 0}
+        \frametitle{Replika blokowa (BR)}
 		\begin{columns}
 		\column{0.7\textwidth}
 		\begin{block}{Redundancja}
-			Replika typu 0 nie zapewnia ochrony danych, jedynie ich odpowiedni rozkład w warstwie
+			Standardowa replika blokowa nie zapewnia ochrony danych, jedynie ich rozkład w warstwie
 		\end{block}
 		\begin{itemize}
 			\item Podstawa do pozostałych replik blokowych
@@ -124,77 +124,73 @@
 		\end{figure}
 		\end{columns}
 \end{frame}
-	
+
 \begin{frame}
-	\frametitle{Replika typu 1}
+    \frametitle{BR o stałej ilości bloków}
+    \begin{figure}[h!]
+            \centering
+            \includegraphics[scale=0.6]{BR-1.png}
+            \caption{Replika blokowa na trzech katalogach}
+            \label{fig:br1}
+    \end{figure}
+\end{frame}
+
+\begin{frame}
+    \frametitle{BR o zmiennej ilości bloków}
+    \begin{figure}[h!]
+            \centering
+            \includegraphics[scale=0.6]{BR-2.png}
+            \caption{Replika blokowa na trzech katalogach}
+            \label{fig:br2}
+    \end{figure}
+\end{frame}
+
+
+\begin{frame}
+        \frametitle{Replika lustrzana (MR)}
 	\begin{columns}
-		\column{0.7\textwidth}
+		\column{1.0\textwidth}
 		\begin{block}{Redundancja}
-			Replika typu 1 tworzy odbicie lustrzane danych
+                Standardowa MR tworzy odbicie lustrzane danych, zapewnia funkcjonalność równą systemu nadrzędnego
 		\end{block}
 		\begin{itemize}
 			\item Wysoki koszt pamięci
 			\item Pełna funkcjonalność systemu plików
 			\item Uszkodzone dane zastąpione danymi z odbicia
 		\end{itemize}
-		\column{0.3\textwidth}
+	\end{columns}
+\end{frame}
+	
+
+\begin{frame}
+        \frametitle{Replika lustrzana (MR)}
+	\begin{columns}
+		\column{1.0\textwidth}
 		\begin{figure}
-			\includegraphics[scale=0.09]{raid-1.png}
+			\includegraphics[]{raid-1.png}
 		\end{figure}
 	\end{columns}
 \end{frame}
 	
 \begin{frame}
-	\frametitle{Replika typu 2}
-	\begin{block}{Redundancja}
-		Replika typu 2 dopisuje do zapisywanych danych bity parzystości
-	\end{block}
+        \frametitle{Repliki korekcyjne }
 	\begin{columns}
-		\column{0.4\textwidth}
+		\column{1.0\textwidth}
+		\begin{block}{Korekcja błędóww}
+		   Repliki korekcyjne są w stanie naprawiać własne błędy podczas operacji lub synchronizacji z innymi replikami.
+        \end{block}
 		\begin{itemize}
-			\item Kody korekcyjne (Hamming)
-			\item Oryginalnie rozkład danych po jednym bicie
+			\item Kod Hamminga 
+			\item Bloki parzystości
+			\item Kod Reeda-Solomona
 		\end{itemize}
-		\column{0.6\textwidth}
-		\begin{figure}
-			\includegraphics[scale=0.1]{raid-2.png}
-		\end{figure}
 	\end{columns}
 \end{frame}
 			
-\begin{frame}
-	\frametitle{Replika typu 3}
-		\begin{block}{Redundancja}
-			Replika typu 3 obsługuje dedykowany podfolder dla sum kontrolnych
-		\end{block}
-	\begin{columns}
-		\column{0.4\textwidth}
-		\begin{itemize}
-			\item Detekcja błędów; porównanie sum kontrolnych
-		\end{itemize}
-		\column{0.6\textwidth}
-		\begin{figure}
-			\includegraphics[scale=0.1]{raid-3.png}
-		\end{figure}
-	\end{columns}
-\end{frame}
-
-\begin{frame}
-	\frametitle{Replika typu 4}
-	\begin{columns}
-		\column{0.4\textwidth}
-		Lorem ipsum
-		\column{0.6\textwidth}
-		\begin{figure}
-			\includegraphics[scale=0.2]{raid-5.png}
-		\end{figure}
-	\end{columns}
-\end{frame}
-		
 	\begin{frame}
 		\frametitle{Przykłady}
 		\begin{block}{Przykład}
-			Dysk, na którym zamontowana była jedna z replik duplikujących dane został odłączony. 
+			Dysk, na którym zamontowana była jedna z replik lustrzanych dane został odłączony. 
 		\end{block}
 		\pause
 		\begin{block}{Przykład}
@@ -206,10 +202,6 @@
 		\end{block}
 	\end{frame}
 	
-	\begin{frame}
-		\frametitle{Konfiguracja oraz komunikacja}
-
-	\end{frame}
 
 	\begin{frame}
 		\frametitle{Ulepszenia}
