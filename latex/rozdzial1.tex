@@ -53,6 +53,7 @@ korekty
 \section {Redundancja danych}
 Redundancja danych stanowi najwazniejsze zagadnienie rozwazanej pracy. Zaproponowano kilka roznych rozwiazan, aby przedstawic pozadany zakres mozliwosci systemu. Rozwiazania oparte sa na macierzy RAID ze wzgledu na ich skutecznosc oraz mozliwosc tworzenia kombinacji standardowych poziomow.
 
+wspomniec o tym ze pomimo nazwy replika mozna miec np jedna i to ma zerowa redundancje ew korekte
 \subsection {RAID}
 Redundant Array of Independent Disks to metoda wirtualizacji przechowywania danych. Wykorzystuje wiele dyskow i laczy je w logiczne jednostki pamieci. RAID jest stosowane do redundancji danych oraz lepszej wydajnosci, jednak w niniejszej pracy wydajnosc systemu nie bedzie rozwazana.  
 RAID jest zbiorem schematow rozwiazan, ktore nazywane sa poziomami. Na potrzeby pracy przedstawione zostana wybrane poziomy, ktore wprowadzaja rozne metody redundancji.
@@ -67,7 +68,7 @@ RAID jest zbiorem schematow rozwiazan, ktore nazywane sa poziomami. Na potrzeby 
 \begin{figure}[h!]
         \centering
         \includegraphics{raid-1.png}
-        \caption{RAID-1 z trzema dyskami}
+        \caption{RAID-1 z dwoma dyskami}
         \label{fig:raid1}
 \end{figure}
 \subsubsection{Poziom 2}
@@ -97,6 +98,7 @@ dupa
 \subsubsection{Poziom 6}
 dupa
 
+\newpage
 \subsection{Standardowe repliki systemu}
 Repliki zostaly zaprojektowane na podstawie poziomow RAID. Roznia sie miedzy soba sposobem wprowadzenia redundancji danych oraz mozliwym zastosowaniem. Ponizej opisano proponowane rodzaje replik oraz rozwazono ich mocne i slabe strony. Wszystkie rodzaje mozna podzielic na dwie kategorie:
 \begin{itemize}
@@ -111,8 +113,15 @@ Oparte na schemacie RAID-1 repliki tego typu stanowią lustrzane odbicie danych.
         \item Naprawia błędy innych replik kopiując całe pliki
         \item Wszystkie dane zamontowane w jednym miejscu. W przypadku, kiedy jeden dysk zostanie uszkodzony, dane zostają utracone.
 \end{itemize}
-Standardowe MR nie są w stanie naprawić uszkodzonych plików. Jedynym rozwiązaniem jest zastąpić uszkodzone pliki w całości danymi z innej repliki. Niestandardowymi MR nazywa się repliki lustrzane z korektą błędów.
 
+\begin{figure}[h!]
+        \centering
+        \includegraphics{raid-1.png}
+        \caption{Dwie repliki blokowe}
+        \label{fig:raid1}
+\end{figure}
+
+Standardowe MR nie są w stanie naprawić uszkodzonych plików. Jedynym rozwiązaniem jest zastąpić uszkodzone pliki w całości danymi z innej repliki. Niestandardowymi MR nazywa się repliki lustrzane z korektą błędów.
 \subsubsection{Repliki Blokowe (BR)}
 W replikach tego typu pliki są rozkładane na części i zapisywane w kolejnych katalogach będących odpowiednikiem dysków poziomu RAID-0. Tak samo katalogi mogą być rozmieszczone na różnych urządzeniach przechowujących. Każdy z katalogów może również być repliką. Jedna część pliku nazywana jest dalej blokiem.
 Rozkład danych jest możliwy na dwa sposoby:

@@ -10,8 +10,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <math.h>
 
 #include "log.h"
+
+char* calc_parity(unsigned char* parity_buf, off_t pos, char current_byte);
 
 char src1[]="/home/kwik/Code/uselessfs/workspace/replica1";
 char src2[]="/home/kwik/Code/uselessfs/workspace/replica2";
@@ -142,34 +145,37 @@ static int do_open(const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
-static int do_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) {
+static int do_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) 
+{
 	log_debug("[read] Running");
 	log_debug("[read] Path: %s", path);
-    
-    //char *fpath = xlate(path, src1);
-    //log_debug("[read] Full path: %s", fpath);
-    //log_debug("[read] fi->fh: %d", fi->fh);
     
     log_debug("[read] size: %d offset: %d fh1: %d fh2: %d", size, offset, file_handlers[0], file_handlers[1]);
     int a2 = pread(file_handlers[0], buffer, size, offset);
     int a1 = pread(file_handlers[1], buffer + a2, size, offset);
     log_debug("[read] buffer: %s end a1: %d a2: %d", buffer, a1, a2);
 
-    return a1+a2;
-//	char file54text[] = "file54";
-//	char file49text[] = "\n\nfile49";	
-//
-//	if( strcmp(path, "/file53") == 0 ) {
-//		memcpy(buffer, file54text + offset, size);
-//		return strlen(file54text) - offset;
-//	} else if( strcmp(path, "/file49") == 0 ) {
-//		memcpy(buffer, file49text + offset, size);
-//		return strlen(file49text) - offset;
-//	} else 
-//		return -1;
-}
+    for (int i = 0; i < a2; i++)
+    {
+        unsigned char current_byte = buffer[i];
+        unsigned char calculated_parity = 0x00;
+        unsigned char proper_parity =( *(buffer+a2+i/2) >> (4 * ((i+1)%2) )) & 0x0f;
 
-static int do_chmod(const char *path, mode_t mode)
+        calc_parity(&calculated_parity, 0, current_byte); 
+        log_debug("[read] CALCULATED PARITY: %x", calculated_parity & 0x0f);
+        log_debug("[read] PROPER PARITY: %x", proper_parity);
+        
+        unsigned char xored = (calculated_parity ^ proper_parity) & 0x0f;
+        log_debug("[read] XORED: %x", xored);
+        if (xored)
+        {
+            log_debug("[read] PROPER CHAR: %x", (int) current_byte + (int) pow(2.0, (double)xored - 1.0));
+        }
+    }
+    return a1+a2;
+}
+// zapisywac na koniec parzystosc wtedy stat bez niej i link nawet powinien dzialc
+static int do_chmod(const char *path,  mode_t mode)
 {
     char *fpath;
     fpath = xlate(path, src1);
@@ -210,69 +216,60 @@ char getBit(char byte, int bit)
     return (byte >> bit) % 2;
 }
 
-//RAID-2 zabity; wymaga zapisywania bitów, useless kiedy system plików odczyta z 4kb
+/* 
+ * Might need to make it compatible for greater Hamming code size later on
+ *
+ */
+char* calc_parity(unsigned char* parity_buf, off_t pos, char current_byte)
+{
+        char p0, p1, p2, p3;
+        p0 = getBit(current_byte, 0) ^ getBit(current_byte, 1) ^ getBit(current_byte, 3) ^ getBit(current_byte, 4) ^ getBit(current_byte, 6);
+        p1 = getBit(current_byte, 0) ^ getBit(current_byte, 2) ^ getBit(current_byte, 3) ^ getBit(current_byte, 5) ^ getBit(current_byte, 6);
+        p2 = getBit(current_byte, 1) ^ getBit(current_byte, 2) ^ getBit(current_byte, 3) ^ getBit(current_byte, 7);
+        p3 = getBit(current_byte, 4) ^ getBit(current_byte, 5) ^ getBit(current_byte, 6) ^ getBit(current_byte, 7);
+
+        parity_buf[pos/2] <<= 1;
+        parity_buf[pos/2] |= p3;
+        parity_buf[pos/2] <<= 1;
+        parity_buf[pos/2] |= p2;
+        parity_buf[pos/2] <<= 1;
+        parity_buf[pos/2] |= p1;
+        parity_buf[pos/2] <<= 1;
+        parity_buf[pos/2] |= p0;
+    
+    return 0; 
+}
+
 static int do_write(const char *path, const char *buf, size_t size,
 		    off_t offset, struct fuse_file_info *fi)
 {
     log_debug("[do_write] Running ");
     log_debug("[do_write] %s %d", path,file_handlers[0]);
     
-    char* parity_buf = (char*) calloc(size, 1);
+    unsigned char* parity_buf = (unsigned char*) calloc(size, 1);
     
     for (int i=0;i<size;i++)
     {
-        char p0, p1, p2, p3;
         char current_byte = buf[i];
-
-        p0 = getBit(current_byte, 0) ^ getBit(current_byte, 1) ^ getBit(current_byte, 3) ^
-             getBit(current_byte, 4) ^ getBit(current_byte, 6);
-        p1 = getBit(current_byte, 0) ^ getBit(current_byte, 2) ^ getBit(current_byte, 3) ^
-             getBit(current_byte, 5) ^ getBit(current_byte, 6);
-        p2 = getBit(current_byte, 1) ^ getBit(current_byte, 2) ^ getBit(current_byte, 3) ^
-             getBit(current_byte, 7);
-        p3 = getBit(current_byte, 4) ^ getBit(current_byte, 5) ^ getBit(current_byte, 6) ^
-             getBit(current_byte, 7);
-
-        parity_buf[i/2] <<= 1;
-        parity_buf[i/2] |= p3;
-        parity_buf[i/2] <<= 1;
-        parity_buf[i/2] |= p2;
-        parity_buf[i/2] <<= 1;
-        parity_buf[i/2] |= p1;
-        parity_buf[i/2] <<= 1;
-        parity_buf[i/2] |= p0;
-
+        //P0 = D0 + D1 + D3 + D4 + D6
+        //P1 = D0 + D2 + D3 + D5 + D6
+        //P2 = D1 + D2 + D3 + D7
+        //P3 = D4 + D5 + D6 + D7
+        calc_parity(parity_buf, i, current_byte);  
+       
+        pwrite(file_handlers[0], buf + i, 1, offset + i);
+        pwrite(file_handlers[1], parity_buf + i / 2, 1, offset + i / 2);
+ 
     }
     
-//P0 = D0 + D1 + D3 + D4 + D6
-//P1 = D0 + D2 + D3 + D5 + D6
-//P2 = D1 + D2 + D3 + D7
-//P3 = D4 + D5 + D6 + D7
-    char *letter = "a";
-    char p0, p1, p2, p3;
-    // xor
-    p0 = ((*letter) % 2 + ((*letter) >> 1) % 2 + ((*letter) >> 3) % 2 + ((*letter) >> 4) % 2 + ((*letter) >> 6) % 2 ) %2;
-    p1 = ((*letter) % 2 + ((*letter) >> 2) % 2 + ((*letter) >> 3) % 2 + ((*letter) >> 5) % 2 + ((*letter) >> 6) % 2 ) %2;
-    p2 = (((*letter) >> 1) % 2 + ((*letter) >> 2) % 2 + ((*letter) >> 3) % 2 + ((*letter) >> 7) % 2 ) %2;
-    p3 = (((*letter) >> 4) % 2 + ((*letter) >> 5) % 2 + ((*letter) >> 6) % 2 + ((*letter) >> 7) % 2) %2;
-    char out = 0x00;
-    /*
+   /*
      * foreach byte in bytes
      *  calculateHamming
      *  attachToBuffer
      * writeFromBuffer
      */
-    out |= p3;
-    out <<= 1;
-    out |= p2;
-    out <<= 1;
-    out |= p1;
-    out <<= 1;
-    out |= p0;
     log_debug("buf: %s parity_buf: %s", buf, parity_buf);
-    pwrite(file_handlers[0], buf, size, offset);
-    pwrite(file_handlers[1], parity_buf, size/2, offset);
-    return 0;
+    return size*3/2;
 }
 
 
