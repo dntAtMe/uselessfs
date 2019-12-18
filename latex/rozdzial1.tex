@@ -155,12 +155,16 @@ Standardowe BR nie są w stanie naprawić uszkodzonych plików, jednak taki podz
 \subsection{Podzial replik na warstwy}
 
 \section {Detekcja błędów}
-    Wykrywanie bledow wspomaga replikowanie oraz korekte, informujac system o niezawodnosci danych. Wszystkie techniki detekcji bledow dodaja kolejne dane do zapisu, tym samym zwiekszajac redundancje w systemie. Kazda metoda ma kilka roznych rozkladow danych wynikajacych ze struktury replik, jednak w niniejszym rozdziale omowione zostana ogolne modele tych technik. Niektore metody detekcji przy odpowiednich warunkach moga od razu dokonywac korekty wykrytych bledow, co zostalo dokladniej opisane w kolejnym punkcie.
-
-    Poprawna detekcja bledow moze umozliwic naprawe uszkodzonych plikow bez wiedzy uzytkownika.
-\section {Korekcja błędów}
-
+    Wykrywanie bledow ma kluczowe znaczenie w dzialaniu opisywanego systemu. Po znalezieniu bledow plikow, moze nastapic proba naprawienia badz zastapienia uszkodzonych danych bez potrzeby ingerencji uzytkownika. Wszystkie techniki detekcji bledow dodaja kolejne bity do zapisu, tym samym zwiekszajac redundancje w systemie. Korzystanie z kontroli bledow niesie za soba wykonywanie dodatkowych obliczen nawet podczas wykonywania podstawowych operacji na plikach, za kazdym razem sprawdzajac poprawnosc danych. Kazda metoda ma kilka roznych rozkladow danych wynikajacych ze struktury replik. Niektore metody detekcji przy odpowiednich warunkach moga od razu dokonywac korekty wykrytych bledow, co zostalo dokladniej opisane w kolejnym punkcie.
+\subsection{Parzystosc}
 \subsection{Kod Hamminga}
+\subsection{Sumy kontrolne}
+    
+\section {Korekcja błędów}
+    Kodowanie korekcyjne umozliwia wykrywanie i korygowanie okreslonych bledow. Kod korekcyjny jest zapisywany w formie redundantnej do kodowanych danych, kodujac wartosci bitow podczas zapisu i w przypadku uszkodzenia  probuje naprawic znalezione bledy.
+\subsection{Kod Hamminga}
+Hamming codes with additional parity SECDED
+\subsection{Kodowanie Reeda-Solomona}
 \subsection{Parzystość}
 \subsection{Repliki korekcyjne}
 
