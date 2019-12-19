@@ -1,11 +1,6 @@
 \chapter{Projekt systemu}
 \thispagestyle{chapterBeginStyle}
-Dla uproszczenia tylko pliki tekstowe, wiec raczej operacje na bajtach
-{\color{dgray}
-W tym rozdziale przedstawiono szczegółowy projekt systemy w notacji UML uwzględniający wymagania funkcjonalne opisane w rozdziale~\ref{rozdzial1}. Do opisu relacji pomiędzy składowymi systemu wykorzystano diagramy \ldots.
-Przedstawiono w pseudokodzie i omówiono algorytmy generowania \ldots.
-}
-
+W tym rozdziale przedstawiono scenariusze oraz przypadki uzycia systemu, na koncu znajduje sie diagram przedstawiajacy zachowanie systemu w okreslonych sytuacjach. Omowiono i przedstawiono w postaci pseudokodu algorytmy zastosowane w systemie. 
 
 \section{Grupy użytkowników i założenia}
 
@@ -24,9 +19,10 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
             S01 & Montowanie systemu plików \\ \hline
             Aktor & Użytkownik \\ \hline
             Warunki wsępne & Aktor przygotował konfigurację systemu \\ \hline
-            Przebieg wydarzeń & \textbullet Aktor montuje system, podając plik konfiguracyjny \newline \newline 
+            & \\ Przebieg wydarzeń & \textbullet Aktor montuje system, podając plik konfiguracyjny \newline \newline 
             \textbullet System odczytuje konfigurację \newline \newline 
-            \textbullet System dostosowuje parametry i montuje system plików \\ \hline
+            \textbullet System dostosowuje parametry i montuje system plików \\
+            & \\ \hline
             Alternatywny przebieg wydarzeń & \textbullet Aktor konfiguruje system przez argumenty wywołania \\ \hline
             Sytuacje wyjątkowe & \textbullet Aktor podał niepoprawną konfigurację \newline \newline
             \textbullet Katalogi podane przez aktora nie istnieją lub są niepoprawne \\ \hline
@@ -51,7 +47,7 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
             4. Aktor dostaje odczytane dane \\ \hline
             Alternatywny przebieg wydarzeń & 
             3. System nie może dokonać korekty błędów  \newline \newline
-            4. Aktor zostaje poinformowany o błędzie przez \newline \newline
+            4. Aktor zostaje poinformowany o błędzie \newline \newline
             5. Aktor dostaje odczytane dane\\ \hline
             Sytuacje wyjątkowe & \textbullet Dany plik nie istnieje w replice  \newline \newline
             \textbullet Nieudany odczyt pliku \newline \newline
@@ -67,7 +63,7 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
                 \hline
             S02.2 & Odczyt pliku przy wykorzystaniu pojedynczej repliki standardowej  \\ \hline
             Aktor & Użytkownik \\ \hline
-            Warunki wsępne & System plików jest zamontowany, replika nie wspiera korekty błędów \\ \hline
+            Warunki wstępne & System plików jest zamontowany, replika nie wspiera korekty błędów \\ \hline
             Przebieg wydarzeń & 
             1. Aktor podaje plik do odczytu \newline \newline 
             2. System sprawdza spójność pliku w replice \newline \newline
@@ -90,7 +86,7 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
                 \hline
             S02.4 & Odczyt pliku przy wykorzystaniu wielu replik\\ \hline
             Aktor & Użytkownik \\ \hline
-            Warunki wsępne & System plików jest zamontowany, replika nie wspiera korekty błędów \\ \hline
+            Warunki wstępne & System plików jest zamontowany, wiele replik aktywnych \\ \hline
             Przebieg wydarzeń & 
             1. Aktor podaje plik do odczytu \newline \newline 
             2. System odczytuje plik z najlepszej repliki\newline \newline
@@ -107,6 +103,29 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
         \caption{Odczyt pliku przy wykorzystaniu wielu replik}
 \end{table}
 
+\begin{table}[h!]
+        \centering
+        \begin{tabular}{ |l|p{10cm}| }
+                \hline
+            S02.5 & Odczyt brakujacego pliku w replice\\ \hline
+            Aktor & Użytkownik \\ \hline
+            Warunki wstępne & System plików jest zamontowany \\ \hline
+            Przebieg wydarzeń & 
+            1. Aktor podaje plik do odczytu \newline \newline 
+            2. System wykrywa brak pliku \newline \newline
+            3. System sprawdza obecnosc pliku w pozostalych replikach \newline \newline
+            4. Brakujace dane zostaja zsynchronizowane miedzy replikami\\ \hline
+            Alternatywny przebieg wydarzeń & 
+            \textbullet Brak innych replik \newline \newline
+            \textbullet Brak pliku we wszystkich replikach \\ \hline
+            Sytuacje wyjątkowe & 
+            \textbullet Błąd oczytu \newline \newline
+            \textbullet Jedyna istniejaca kopia pliku jest zbyt uszkodzona\\ \hline
+            Warunki końcowe & System zwrócił aktorowi odczytane dane i dane zostaly zsynchronizowane lub aktor zostal poinformowany o braku pliku\\ \hline
+        \end{tabular}
+        \caption{Odczyt brakujacego pliku w replice}
+\end{table}
+
 \newpage
 
 
@@ -117,10 +136,10 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
                 \hline
             S03.1 & Zapis pliku przy wykorzystaniu pojedynczej repliki korekcyjnej \\ \hline
             Aktor & Użytkownik \\ \hline
-            Warunki wsępne & System plików jest zamontowany, replika wspiera korekcję błędów \\ \hline
+            Warunki wstępne & System plików jest zamontowany, replika wspiera korekcję błędów \\ \hline
             Przebieg wydarzeń & 
             1. Aktor podaje dane do zapisu \newline \newline 
-            2. System dopisuje dodatkowe informacje do korekcji \newline \newline 
+            2. System dopisuje dodatkowe informacje do korekty \newline \newline 
             3. System zapisuje do repliki \\ \hline
             Alternatywny przebieg wydarzeń &
             4. System nie może dopisać dodatkowych informacji  \newline \newline
@@ -140,9 +159,10 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
                 \hline
                 S03.2 & Zapis pliku przy wykorzystaniu pojedynczej repliki standardowej\\ \hline
             Aktor & Użytkownik \\ \hline
-            Warunki wsępne & System plików jest zamontowany, replika nie wspiera korekcji błędów \\ \hline
+            Warunki wstępne & System plików jest zamontowany, replika nie wspiera korekcji błędów \\ \hline
             Przebieg wydarzeń & 
-            1. Aktor podaje dane do zapisu \newline \newline 
+            1. Aktor podaje dane do zapisu \newline \newline
+            2. System dopisuje dodatkowe informacje do detekcji bledow \newline \newline
             2. System zapisuje do repliki \\ \hline
             Alternatywny przebieg wydarzeń &
             3. System nie może zapisać do repliki  \newline \newline
@@ -163,7 +183,7 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
                 \hline
             S03.3 & Zapis pliku przy wykorzystaniu wielu replik\\ \hline
             Aktor & Użytkownik \\ \hline
-            Warunki wsępne & System plików jest zamontowany, wiele replik \\ \hline
+            Warunki wstępne & System plików jest zamontowany, wiele replik \\ \hline
             Przebieg wydarzeń & 
             1. Aktor podaje dane do zapisu \newline \newline 
             2. System zapisuje dane do każdej repliki \newline \newline 
@@ -172,46 +192,47 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
             Brak \\ \hline
             Sytuacje wyjątkowe & 
             \textbullet Nieudany zapis pliku do każdej repliki\newline \newline
-            \textbullet Wszystkie repliki zostały wyłączone \newline \newline
-            \textbullet \\ \hline
+            \textbullet Wszystkie repliki zostały wyłączone \\ \hline
             Warunki końcowe & System zapisał dane podane przez aktora i są działające repliki\\ \hline
         \end{tabular}
         \caption{Zapis pliku przy wykorzystaniu wielu replik} 
 \end{table}
+
+\subsection {Niezorganizowane}
+\begin{table}[h!]
+        \centering
+        \begin{tabular}{ |l|p{10cm}| }
+                \hline
+            S04.1 & Wybor najlepszej repliki\\ \hline
+            Aktor & Użytkownik \\ \hline
+            Warunki wstępne & System plików jest zamontowany, przynajmniej jedna replika\\ \hline
+            Przebieg wydarzeń & 
+            1. System sprawdza czy sa aktywne repliki \newline \newline 
+            2. System wybiera najlepsza replike z aktywnych \\ \hline
+            Alternatywny przebieg wydarzeń &
+            Brak \\ \hline
+            Sytuacje wyjątkowe & 
+            \textbullet Wszystkie repliki zostały wyłączone \\ \hline
+            Warunki końcowe & System wybral replike i wykonuje operacje aktora\\ \hline
+        \end{tabular}
+        \caption{Wybor najlepszej repliki} 
+\end{table}
+
+
+
 \newpage
 
 
 
 
-\section{Diagramy klas}
 
-W tej sekcji należy przedstawić diagramy klas dla odpowiednich elementów systemu zidentyfikowane na podstawie wcześniejszych rozważań 
-
-
-
-\section{Diagramy sekwencji}
-
-W tej sekcji należy przedstawić diagramy sekwencji dla obiektów systemu zidentyfikowanych na podstawie wcześniejszych rozważań. Należy wykorzystać nazewnictwo wprowadzone w poprzednich rozdziałach, w szczególności odpowiadające definicjom wprowadzonych klas.
-
-\section{Diagramy stanów}
-
-W tej sekcji należy przedstawić diagramy stanów w których może znaleźć się system. Diagramy te są szczególnie istotne przy projektowaniu systemów czasu rzeczywistego. 
-
-\section{Projekt bazy danych}
-
-W tej sekcji należy przedstawić projekt bazy danych. Należy omówić wycinek rzeczywistości i odpowiadające mu zidentyfikowane elementy systemu, których wartości będą podlegać utrwalaniu. Należy przedyskutować wybór typów danych dla atrybutów poszczególnych obiektów. Należy uzasadnić wybór platformy DBMS. Dla relacyjnych baz danych należy przedyskutować jej normalizację.
-
-\section{Opis protokołów}
-
-W tej sekcji należy omówić protokoły wykorzystywane przez komponenty systemu. Omówić formaty komunikatów i zilustrować je przykładami. 
+\section{Diagramy}
 
 \section{Opis algorytmów}
 
 W tej sekcji należy wymienić i przedyskutować algorytmy wykorzystywane w systemie. Algorytmy należy przedstawić w pseudokodzie (wykorzystać pakiet \texttt{algorithm2e}). Omówienia poszczególnych kroków algorytmów powinny zawierać odwołania do odpowiednich linii pseudokodu. Dla zaproponowanych autorskich algorytmów należy przeprowadzić analizę ich złożoności czasowej i pamięciowej. 
 
-{\color{dgray}
-Algorytm bąblowania jest przedstawiony w Pseudokodzie~\ref{alg:mine}.
-}
+~\ref{alg:mine}.
 
 {\small
 \begin{pseudokod}[H]
@@ -238,7 +259,37 @@ $B \leftarrow B \setminus \{b\}$\;
 }
 }
 }
-\caption{Wyporność przez bąblowanie}\label{alg:mine}
+\caption{Wybor najlepszej repliki}\label{alg:mine}
 \end{pseudokod}
 }
+
+{\small
+\begin{pseudokod}[H]
+%\SetAlTitleFnt{small}
+\caption{Kodowanie Huffmana}\label{alg:mine}
+\end{pseudokod}
+}
+
+{\small
+\begin{pseudokod}[H]
+%\SetAlTitleFnt{small}
+\caption{Obliczanie parzystosci dla danych}\label{alg:mine}
+\end{pseudokod}
+}
+
+{\small
+\begin{pseudokod}[H]
+%\SetAlTitleFnt{small}
+\caption{Odzyskiwanie pliku}\label{alg:mine}
+\end{pseudokod}
+}
+
+{\small
+\begin{pseudokod}[H]
+%\SetAlTitleFnt{small}
+\caption{Synchronizacja replik}\label{alg:mine}
+\end{pseudokod}
+}
+
+
 

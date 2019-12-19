@@ -37,11 +37,11 @@ Założenia omawianego modelu:
 Nadmiarowość zapisywanych informacji jest często stosowana w celu wykrycia uszkodzonych danych lub zabezpieczenia ich przed utratą po częściowym, czy całkowitym uszkodzeniu.
 Redundancja danych stanowi najwazniejsze zagadnienie rozwazanej pracy. Zaproponowano kilka roznych rozwiazan, aby przedstawic pozadany zakres mozliwosci systemu. Rozwiazania oparte sa na macierzy RAID ze wzgledu na ich skutecznosc oraz mozliwosc tworzenia kombinacji standardowych poziomow.
 
-wspomniec o tym ze pomimo nazwy replika mozna miec np jedna i to ma zerowa redundancje ew korekte
 \subsection {RAID}
 Redundant Array of Independent Disks to metoda wirtualizacji przechowywania danych. Wykorzystuje wiele dyskow i laczy je w logiczne jednostki pamieci. RAID jest stosowane do redundancji danych oraz lepszej wydajnosci, jednak w niniejszej pracy wydajnosc systemu nie bedzie rozwazana.  
 RAID jest zbiorem schematow rozwiazan, ktore nazywane sa poziomami. Na potrzeby pracy przedstawione zostana wybrane poziomy, ktore wprowadzaja rozne metody redundancji.
 \subsubsection{Poziom 0}
+RAID-0 jako jedyny poziom RAID wprowadza zerowa redundancje. Laczy przynajmniej dwa fizyczne nosniki danych w jeden dysk logiczny i w tej przestrzeni przeplata dane pomiedzy dyskami. Dane sa dzielone na bloki o stalym rozmiarze. Poziom 0 w zaden sposob nie zapewnia niezawodnosci danych, jednak stanowi podstawe do innych poziomow. Wykorzystanie przeplotu danych na wiele dyskow usprawnia operacje odczytu i zapisu wykonujac je rownolegle na wszystkich dyskach macierzy.
 \begin{figure}[h!]
         \centering
         \includegraphics{raid-0.png}
@@ -49,6 +49,7 @@ RAID jest zbiorem schematow rozwiazan, ktore nazywane sa poziomami. Na potrzeby 
         \label{fig:raid0}
 \end{figure}
 \subsubsection{Poziom 1}
+RAID-1 dziala na przynajmniej dwoch dyskach. Dane sa zapisywane do wszystkich dyskow, tworzac lustrzane odbicia. Z tego wzgledu czas wykonywania dowolnych operacji jest rowny sumie czasu trwania danej operacji na wszystkich dyskach, jednak mozliwe jest przyspieszenie dzialania. RAID-1 chroni przed utrata $(n-1)$ dyskow macierzy, jednak przez to wymaga duzej ilosci miejsca; dla $n$ dyskow o rozmiarze $m$ potrzebne jest $n\times m$ wolnej przestrzeni.
 \begin{figure}[h!]
         \centering
         \includegraphics{raid-1.png}
@@ -56,7 +57,7 @@ RAID jest zbiorem schematow rozwiazan, ktore nazywane sa poziomami. Na potrzeby 
         \label{fig:raid1}
 \end{figure}
 \subsubsection{Poziom 2}
-dupa
+Podobnie do RAID-0, dane sa dzielone miedzy dyskami. W przypadku poziomu drugiego, dane sa dzielone na pojedyncze bity, a kazdy bit jest zapisywany na kolejnym dysku. RAID-2 wykorzystuje kod Hamminga do korekcji wystepujacych bledow, wszystkie bity kodu znajduja sie w odpowiednich dyskach i  pozwalaja na odzyskanie jednego uszkodzonego dysku. 
 \begin{figure}[h!]
         \centering
         \includegraphics{raid-2.png}
@@ -64,7 +65,7 @@ dupa
         \label{fig:raid2}
 \end{figure}
 \subsubsection{Poziom 4}
-dupa
+t
 \begin{figure}[h!]
         \centering
         \includegraphics{raid-4.png}
@@ -72,7 +73,7 @@ dupa
         \label{fig:raid4}
 \end{figure}
 \subsubsection{Poziom 5}
-dupa
+t
 \begin{figure}[h!]
         \centering
         \includegraphics{raid-5.png}
@@ -80,11 +81,10 @@ dupa
         \label{fig:raid5}
 \end{figure}
 \subsubsection{Poziom 6}
-dupa
-
+t
 \newpage
 \subsection{Standardowe repliki systemu}
-Repliki zostaly zaprojektowane na podstawie poziomow RAID. Roznia sie miedzy soba sposobem wprowadzenia redundancji danych oraz mozliwym zastosowaniem. Ponizej opisano proponowane rodzaje replik oraz rozwazono ich mocne i slabe strony. Wszystkie rodzaje mozna podzielic na dwie kategorie:
+Repliki zostaly zaprojektowane na podstawie poziomow RAID. Roznia sie miedzy soba sposobem wprowadzenia redundancji danych oraz mozliwym zastosowaniem. System funkcjonuje z jedna replika, kosztem nizszej redundancji. Ponizej opisano proponowane rodzaje replik oraz rozwazono ich mocne i slabe strony. Wszystkie rodzaje mozna podzielic na dwie kategorie:
 \begin{itemize}
     \item Replika standardowa - Dokonuje detekcji bledow w plikach, jednak w przypadku wykrycia takiego bledu lub desynchronizacji z innymi replikami, nie jest w stanie dokonac korekty bledow bez dodatkowych replik
     \item Replika korekcyjna - Dokonuje zarowno detekcji, jak i korekcji znalezionych bledow. Jesli korekta znalezionych bledow jest niemozliwa, zachowuje sie podobnie do repliki bez korekty - desynchronizacja moze zostac naprawiona wylacznia z dodatkowymi replikami
@@ -140,6 +140,8 @@ W przypadku awarii jednego z bloków repliki, replika jest nadal aktywna wtedy i
 \end{itemize}
 
 \subsection{Podzial replik na warstwy}
+W celu ulatwienia rozszerzalnosci dzialania replik, kolejne funkcjonalnosci skladaja sie na niezalezne warstwy. W przypadku, kiedy uzytkownik chce dodac nowe funkcje lub zmienic obecne, powinien byc w stanie to zrobic bez koniecznosci zmian w niepowiazanych czesciach systemu.
+
 
 \section {Detekcja błędów}
     Wykrywanie bledow ma kluczowe znaczenie w dzialaniu opisywanego systemu. Po znalezieniu bledow plikow, moze nastapic proba naprawienia badz zastapienia uszkodzonych danych bez potrzeby ingerencji uzytkownika. Wszystkie techniki detekcji bledow dodaja kolejne bity do zapisu, tym samym zwiekszajac redundancje w systemie. Korzystanie z kontroli bledow niesie za soba wykonywanie dodatkowych obliczen nawet podczas wykonywania podstawowych operacji na plikach, za kazdym razem sprawdzajac poprawnosc danych. Kazda metoda ma kilka roznych rozkladow danych wynikajacych ze struktury replik. Niektore metody detekcji przy odpowiednich warunkach moga od razu dokonywac korekty wykrytych bledow, co zostalo dokladniej opisane w kolejnym punkcie.
@@ -184,7 +186,17 @@ Dla replik blokowych, ze względu na ich rozproszoną strukturę, przedstawiono 
 
 
 \section {Synchronizacja replik}
+Kiedy dane zostana uszkodzone, albo omawiany system plikow zostanie zamontowany w dowolnym momencie, zachodzi potrzeba synchronizacji pomiedzy replikami. Stad repliki moga znajdowac sie w przynamniej dwoch stanach. W przypadku wykrycia desynchronizacji, brakujace lub uszkodzone dane powinny zostac naprawione informacjami z pozostalych replik. Obslugiwane scenariusze desynchronizacji:
+\begin{itemize}
+    \item Brakujace dane w jednej z replik podczas montowania systemu pliku lub proby odczytu
+    \item Rozniace sie miedzy soba dane pomiedzy replikami podczas montowania systemu plikow lub proby odczytu
+\end{itemize}
+Kiedy nastepuje proba odczytu brakujacego pliku w wybranej replice, system moze sprawdzic obecnosc tego pliku w pozostalych miejscach. Jesli znajduje, nastepuje synchronizacja replik z brakujacymi danymi. Jesli podczas poczatkowej synchronizacji replik system wykryje rozne dane w tych samych plikach, wystepuje konflikt. 
 
 \section {Dzialanie systemu plikow}
 
-\section {Wygoda uzytkowania}
+\section {Sposob uzytkowania}
+Jak najwiecej funkcji systemu, takich jak podzial na repliki czy nawet podzial plikow na bloki,  powinno byc niewidoczne dla uzytkownika. Operacje detekcji, czy naprawy bledow oraz synchronizowanie replik odbywaja sie w tle.
+
+Uzytkownik powinien byc informowany o zachodzacych procesach wylacznie w przypadku, kiedy system nie moze dalej samodzielnie operowac. Konflikty podczas synchronizacji powinny byc rozwiazywane przez uzytkownika, ktory decyduje na podstawie zawartosci plikow wywolujacych konflikt.
+
