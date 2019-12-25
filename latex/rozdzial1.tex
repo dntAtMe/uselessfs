@@ -33,6 +33,9 @@ Założenia omawianego modelu:
     \item Wygoda uzytkowania
 \end{itemize}
 
+\section{System plikow}
+omowic korzystanie z fuse gotowy interfejs focus na redundancji
+
 \section {Redundancja danych}
 Nadmiarowość zapisywanych informacji jest często stosowana w celu wykrycia uszkodzonych danych lub zabezpieczenia ich przed utratą po częściowym, czy całkowitym uszkodzeniu.
 Redundancja danych stanowi najwazniejsze zagadnienie rozwazanej pracy. Zaproponowano kilka roznych rozwiazan, aby przedstawic pozadany zakres mozliwosci systemu. Rozwiazania oparte sa na macierzy RAID ze wzgledu na ich skutecznosc oraz mozliwosc tworzenia kombinacji standardowych poziomow.
@@ -183,8 +186,6 @@ Dla replik blokowych, ze względu na ich rozproszoną strukturę, przedstawiono 
         \item Zapisywanie bitów kodu razem z kodowanymi danymi
 \end{itemize}
 
-
-
 \section {Synchronizacja replik}
 Kiedy dane zostana uszkodzone, albo omawiany system plikow zostanie zamontowany w dowolnym momencie, zachodzi potrzeba synchronizacji pomiedzy replikami. Stad repliki moga znajdowac sie w przynamniej dwoch stanach. W przypadku wykrycia desynchronizacji, brakujace lub uszkodzone dane powinny zostac naprawione informacjami z pozostalych replik. Obslugiwane scenariusze desynchronizacji:
 \begin{itemize}
@@ -192,8 +193,6 @@ Kiedy dane zostana uszkodzone, albo omawiany system plikow zostanie zamontowany 
     \item Rozniace sie miedzy soba dane pomiedzy replikami podczas montowania systemu plikow lub proby odczytu
 \end{itemize}
 Kiedy nastepuje proba odczytu brakujacego pliku w wybranej replice, system moze sprawdzic obecnosc tego pliku w pozostalych miejscach. Jesli znajduje, nastepuje synchronizacja replik z brakujacymi danymi. Jesli podczas poczatkowej synchronizacji replik system wykryje rozne dane w tych samych plikach, wystepuje konflikt. 
-
-\section {Dzialanie systemu plikow}
 
 \section {Sposob uzytkowania}
 Jak najwiecej funkcji systemu, takich jak podzial na repliki czy nawet podzial plikow na bloki,  powinno byc niewidoczne dla uzytkownika. Operacje detekcji, czy naprawy bledow oraz synchronizowanie replik odbywaja sie w tle.

@@ -11,19 +11,35 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <math.h>
-
+#include <errno.h>
 #include "log.h"
+#include "hash.c"
 
 char* calc_parity(unsigned char* parity_buf, off_t pos, char current_byte);
 
-char src1[]="/home/kwik/Code/uselessfs/workspace/replica1";
-char src2[]="/home/kwik/Code/uselessfs/workspace/replica2";
-int file_handlers[2];
+hash_t *h;
 
-const char* sources[] = {
-    "/home/kwik/Code/uselessfs/workspace/replica1",
-    "/home/kwik/Code/uselessfs/workspace/replica2",
-};
+char src1[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r1";
+char src2[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r2";
+int file_handlers[2];
+int replicas_cnt;
+
+char* sources[] = {"/home/dntAtMe/code/fuse/uselessfs/workspace/r1", "/home/dntAtMe/code/fuse/uselessfs/workspace/r2"};
+
+enum replica_status_t {CLEAN, DIRTY, INACTIVE};
+enum replica_type_t {BLOCK, MIRROR};
+
+typedef struct replica_config_t
+{
+    char **paths;
+    size_t paths_size;
+    enum replica_status_t status;
+    enum replica_type_t type;
+    uint8_t flags;
+    uint8_t priority;
+} replica_config_t;
+
+replica_config_t *configs = NULL;
 
 char *xlate(const char *fname, const char *rpath)
 {
@@ -129,6 +145,7 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 }
 
 int testvar = 0;
+// TODO: fix freezes when hashmap filled
 static int do_open(const char *path, struct fuse_file_info *fi)
 {
     char *fpaths[] = {"", ""};
@@ -139,9 +156,12 @@ static int do_open(const char *path, struct fuse_file_info *fi)
        fpaths[i] = (char*) malloc(strlen(tmp_path)+1);
        strcpy(fpaths[i],tmp_path); 
     }
-    
+     
     file_handlers[0] = open(fpaths[0], fi->flags);
     file_handlers[1] = open(fpaths[1], fi->flags);
+    uint64_t stamp = (uint64_t) time( NULL );
+    hash_insert(h, stamp, file_handlers);
+    fi->fh = stamp;
     return 0;
 }
 
@@ -151,8 +171,8 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
 	log_debug("[read] Path: %s", path);
     
     log_debug("[read] size: %d offset: %d fh1: %d fh2: %d", size, offset, file_handlers[0], file_handlers[1]);
-    int a2 = pread(file_handlers[0], buffer, size, offset);
-    int a1 = pread(file_handlers[1], buffer + a2, size, offset);
+    int a2 = pread(*(hash_lookup(h, fi->fh)), buffer, size, offset);
+    int a1 = pread(*(hash_lookup(h, fi->fh)+1), buffer + a2, size, offset);
     log_debug("[read] buffer: %s end a1: %d a2: %d", buffer, a1, a2);
 
     for (int i = 0; i < a2; i++)
@@ -172,7 +192,7 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
             log_debug("[read] PROPER CHAR: %x", (int) current_byte + (int) pow(2.0, (double)xored - 1.0));
         }
     }
-    return a1+a2;
+    return a2;
 }
 // zapisywac na koniec parzystosc wtedy stat bez niej i link nawet powinien dzialc
 static int do_chmod(const char *path,  mode_t mode)
@@ -240,14 +260,11 @@ char* calc_parity(unsigned char* parity_buf, off_t pos, char current_byte)
     return 0; 
 }
 
-static int do_write(const char *path, const char *buf, size_t size,
-		    off_t offset, struct fuse_file_info *fi)
+
+int write_to_replica(const char *path, const char *buf, size_t size,
+		    off_t offset, struct fuse_file_info *fi, replica_config_t config, int no_replica)
 {
-    log_debug("[do_write] Running ");
-    log_debug("[do_write] %s %d", path,file_handlers[0]);
-    
     unsigned char* parity_buf = (unsigned char*) calloc(size, 1);
-    
     for (int i=0;i<size;i++)
     {
         char current_byte = buf[i];
@@ -257,18 +274,52 @@ static int do_write(const char *path, const char *buf, size_t size,
         //P3 = D4 + D5 + D6 + D7
         calc_parity(parity_buf, i, current_byte);  
        
-        pwrite(file_handlers[0], buf + i, 1, offset + i);
-        pwrite(file_handlers[1], parity_buf + i / 2, 1, offset + i / 2);
- 
     }
-    
-   /*
-     * foreach byte in bytes
-     *  calculateHamming
-     *  attachToBuffer
-     * writeFromBuffer
-     */
+    int ret;
+    ret = pwrite(*(hash_lookup(h, fi->fh)+no_replica), buf, size, offset);
+    if (ret == -1)
+    {
+        return -1;
+    }
+    ret = pwrite(*(hash_lookup(h, fi->fh)+no_replica), parity_buf, size/2, offset + size); 
+    if (ret == -1)
+    {
+        return -1;
+    }
     log_debug("buf: %s parity_buf: %s", buf, parity_buf);
+    return 0;
+}
+
+static int do_write(const char *path, const char *buf, size_t size,
+		    off_t offset, struct fuse_file_info *fi)
+{
+    /*
+     * 1. Iterate over all replicas
+     * 2. Change buffer depending on replica type
+     * 3. Write to replica
+     * 4. On error, mark as dirty
+     */
+    log_debug("[do_write] Running ");
+    log_debug("[do_write] %s %d", path,file_handlers[0]);
+    
+    for(int i = 0; i < replicas_cnt; i++)
+    {
+        // Write to replica if usable 
+        int val = write_to_replica(path, buf, size, offset, fi, configs[i], i);
+        // If failed, take action depending on value of errno (see man write(2))
+        if (val == -1)
+        {
+            switch(errno)
+            {
+                case EBADF:
+                        
+                        break;
+            }
+        }
+        // Mark replica as dirty
+        configs[i].status = DIRTY;
+    }
+   
     return size*3/2;
 }
 
@@ -289,5 +340,35 @@ static struct fuse_operations operations = {
 };
 
 int main(int argc, char* argv[]) {
-	return fuse_main(argc, argv, &operations, NULL);
+    h = hash_new(15);
+
+    if (argc < 2)
+    {
+        printf("Need arguments \n");
+    }
+
+    replicas_cnt = (int) strtol(argv[1], (char**) NULL, 10);
+    char** fuse_argv = calloc(argc, sizeof(char*)); 
+    configs = calloc(replicas_cnt, sizeof(replica_config_t));
+    for (int i = 0; i < replicas_cnt; i++)
+    {
+         char* path = xlate(argv[2+i],getenv("PWD"));
+         configs[i].paths = calloc(1, sizeof(char*));
+         configs[i].paths[0] = path;
+         configs[i].status = CLEAN;
+         configs[i].type = MIRROR;
+         configs[i].flags = 0x00;
+         configs[i].priority = 0;
+         printf("Replica: %s\n", configs[i].paths[0]);
+         printf("Replica: %s\n", argv[4]);
+    }
+
+    fuse_argv[0] = argv[0];
+    for(int i = 2+replicas_cnt; i < argc; i++)
+    {
+        printf("arg: %s\n", argv[i]);
+        fuse_argv[i-1-replicas_cnt] = argv[i];
+    }
+
+	return fuse_main(argc-1-replicas_cnt, fuse_argv, &operations, NULL);
 }
