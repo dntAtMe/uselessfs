@@ -21,7 +21,6 @@ hash_t *h;
 
 char src1[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r1";
 char src2[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r2";
-int file_handlers[2];
 int replicas_cnt;
 
 char* sources[] = {"/home/dntAtMe/code/fuse/uselessfs/workspace/r1", "/home/dntAtMe/code/fuse/uselessfs/workspace/r2"};
@@ -144,36 +143,67 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 	return 0;
 }
 
-int testvar = 0;
-// TODO: fix freezes when hashmap filled
-static int do_open(const char *path, struct fuse_file_info *fi)
+int block_replica_open(const char *path, struct fuse_file_info *fi, replica_config_t config, int *file_handlers, size_t number)
 {
-    char *fpaths[] = {"", ""};
-
-    for (size_t i = 0; i < sizeof(sources) / sizeof(sources[0]); i++)
-    {
-       char *tmp_path = xlate(path, sources[i]);
-       fpaths[i] = (char*) malloc(strlen(tmp_path)+1);
-       strcpy(fpaths[i],tmp_path); 
-    }
-     
-    file_handlers[0] = open(fpaths[0], fi->flags);
-    file_handlers[1] = open(fpaths[1], fi->flags);
-    uint64_t stamp = (uint64_t) time( NULL );
-    hash_insert(h, stamp, file_handlers);
-    fi->fh = stamp;
+    char *full_path = xlate(path, config.paths[0]);
+    
+    int val = open(full_path, fi->flags);
+    if (val == -1)
+        return val;
+    file_handlers[number] = val;
     return 0;
 }
 
+// TODO: fix freezes when hashmap filled, increase its' size to max opened file descriptors per process
+static int do_open(const char *path, struct fuse_file_info *fi)
+{
+    int *file_handlers = malloc(sizeof(int) * replicas_cnt);
+ 
+    for (size_t i = 0; i < replicas_cnt; i++)
+    {   
+        int ret = block_replica_open(path, fi, configs[i], file_handlers, i);
+        log_debug("[open] handler: %d", file_handlers[i]);
+        if (ret == -1)
+        {
+            // Read error
+        }
+    }
+     
+    uint64_t stamp = (uint64_t) time( NULL );
+    hash_insert(h, stamp, file_handlers);
+    fi->fh = stamp;
+    log_debug("[open] file_handler: %d",*(hash_lookup(h, fi->fh)));
+    return 0;
+}
+
+int block_replica_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi, replica_config_t config, size_t number)
+{
+    log_debug("[block_replica_read] Running");
+	// Read all
+    int ret = pread(*(hash_lookup(h, fi->fh)+number), buffer, size, offset);
+    // Check  if we read properly
+    if (ret == -1)
+    {
+        // Error
+    }
+    // Seperate data from redundant bytes
+    // OR
+    // read file from second tree for redundant bytes
+
+    // Check if data matches redundant information (ecc, parity, checksums) 
+
+    // If ok, return amount of bytes read
+    return ret;
+}
+
+// If read completely fails, mark replica as INACTIVE
 static int do_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) 
 {
 	log_debug("[read] Running");
 	log_debug("[read] Path: %s", path);
     
-    log_debug("[read] size: %d offset: %d fh1: %d fh2: %d", size, offset, file_handlers[0], file_handlers[1]);
-    int a2 = pread(*(hash_lookup(h, fi->fh)), buffer, size, offset);
-    int a1 = pread(*(hash_lookup(h, fi->fh)+1), buffer + a2, size, offset);
-    log_debug("[read] buffer: %s end a1: %d a2: %d", buffer, a1, a2);
+    log_debug("[read] size: %d offset: %d fh1: %d fh2: %d", size, offset, *(hash_lookup(h, fi->fh)), *(hash_lookup(h, fi->fh)+1));
+/*  int a2 = pread(*(hash_lookup(h, fi->fh)), buffer, size, offset);
 
     for (int i = 0; i < a2; i++)
     {
@@ -192,7 +222,33 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
             log_debug("[read] PROPER CHAR: %x", (int) current_byte + (int) pow(2.0, (double)xored - 1.0));
         }
     }
-    return a2;
+*/
+    for (int i = 0; i < replicas_cnt; i++)
+    {
+        int ret = block_replica_read(path, buffer, size, offset, fi, configs[i], i);
+        switch (ret)
+        {
+            // Read failed, check errno
+            case -1:
+                log_debug("[read] Error when reading -1");
+            break;
+            // Found damaged data
+            case -2:
+                log_debug("[read] Error when reading -2");
+            break;
+            case -3:
+                log_debug("[read] Error when reading -3");
+            break;
+            // All ok, returns amount of bytes read
+            default:
+                log_debug("[read] Reading done");
+                return ret;
+            break;
+        }
+    }
+
+
+    return 0;
 }
 // zapisywac na koniec parzystosc wtedy stat bez niej i link nawet powinien dzialc
 static int do_chmod(const char *path,  mode_t mode)
@@ -226,7 +282,19 @@ static int do_truncate(const char *path, off_t size)
 static int do_release(const char *path, struct fuse_file_info *fi)
 {
     log_debug("[release] Starting");
-    close(fi->fh);
+    int *fhs = hash_lookup(h, fi->fh);
+    for (int i = 0; i < replicas_cnt; i++)
+    {
+        int val = close(fhs[i]);
+        if (val == -1)
+        {
+            // Error
+        }
+    }
+    hash_delete(h, fi->fh);
+    log_debug("[release] %d", fhs[0]);
+    free(fhs);
+    log_debug("[release] %d", fhs[0]);
     return 0;
 }
 
@@ -300,7 +368,6 @@ static int do_write(const char *path, const char *buf, size_t size,
      * 4. On error, mark as dirty
      */
     log_debug("[do_write] Running ");
-    log_debug("[do_write] %s %d", path,file_handlers[0]);
     
     for(int i = 0; i < replicas_cnt; i++)
     {
