@@ -15,16 +15,6 @@
 #include "log.h"
 #include "hash.c"
 
-char* calc_parity(unsigned char* parity_buf, off_t pos, char current_byte);
-
-hash_t *h;
-
-char src1[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r1";
-char src2[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r2";
-int replicas_cnt;
-
-char* sources[] = {"/home/dntAtMe/code/fuse/uselessfs/workspace/r1", "/home/dntAtMe/code/fuse/uselessfs/workspace/r2"};
-
 enum replica_status_t {CLEAN, DIRTY, INACTIVE};
 enum replica_type_t {BLOCK, MIRROR};
 
@@ -39,6 +29,49 @@ typedef struct replica_config_t
 } replica_config_t;
 
 replica_config_t *configs = NULL;
+
+#define FLAG_USE_HAMMING 1
+#define FLAG_HAMMING_EXTRA_BIT 2
+#define FLAG_USE_PARITY 4
+#define FLAG_USE_CHECKSUM 8
+#define FLAG_CORRECT_ERRORS 16
+#define FLAG_ATTACH_REDUNDANT 32
+#define FLAG_RESTRICT_BLOCKS 64
+
+unsigned short should_use_hamming(replica_config_t config)
+{
+    return config.flags & (FLAG_USE_HAMMING | FLAG_HAMMING_EXTRA_BIT);
+}
+
+unsigned short should_attach_redundant(replica_config_t config)
+{
+    return config.flags & FLAG_ATTACH_REDUNDANT;
+}
+
+unsigned short should_restrict_blocksize(replica_config_t config)
+{
+    return config.flags & FLAG_RESTRICT_BLOCKS;
+}
+
+unsigned short should_correct_errors(replica_config_t config)
+{
+    return config.flags & FLAG_CORRECT_ERRORS;
+} 
+
+size_t calculate_hamming(unsigned char* parity_buf, off_t pos, char current_byte);
+
+char getBit(char byte, int bit)
+{
+    return (byte >> bit) % 2;
+}
+
+hash_t *h;
+
+char src1[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r1";
+char src2[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r2";
+int replicas_cnt;
+
+char* sources[] = {"/home/dntAtMe/code/fuse/uselessfs/workspace/r1", "/home/dntAtMe/code/fuse/uselessfs/workspace/r2"};
 
 char *xlate(const char *fname, const char *rpath)
 {
@@ -133,17 +166,30 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
     }
     closedir(dp);
 
-	//filler(buffer, ".", NULL, 0);
-	//filler(buffer, "..", NULL, 0);
-	//if(strcmp(path, "/") == 0) {
-	//	filler(buffer, "file54", NULL, 0);
-	//	filler(buffer, "file49", NULL, 0);
-	//}
-
 	return 0;
 }
 
+/*
+* Returns amount of files opened
+*/
 int block_replica_open(const char *path, struct fuse_file_info *fi, replica_config_t config, int *file_handlers, size_t number)
+{
+    for (int path_idx = 0; path_idx < config.paths_size; path_idx++)
+    {
+        char *full_path = xlate(path, config.paths[path_idx]);
+    
+        int val = open(full_path, fi->flags);
+        if (val == -1)
+            return val;
+        file_handlers[number + path_idx] = val;
+    }
+    return config.paths_size;
+}
+
+/*
+* Returns amount of files opened
+*/
+int mirror_replica_open(const char *path, struct fuse_file_info *fi, replica_config_t config, int *file_handlers, size_t number)
 {
     char *full_path = xlate(path, config.paths[0]);
     
@@ -151,21 +197,37 @@ int block_replica_open(const char *path, struct fuse_file_info *fi, replica_conf
     if (val == -1)
         return val;
     file_handlers[number] = val;
-    return 0;
+    return 1;
 }
 
 // TODO: fix freezes when hashmap filled, increase its' size to max opened file descriptors per process
 static int do_open(const char *path, struct fuse_file_info *fi)
 {
-    int *file_handlers = malloc(sizeof(int) * replicas_cnt);
- 
+    // TODO: SET file_handlers size properly
+    int *file_handlers = malloc(sizeof(int) * 100);
+    int next_free_fh = 0;
+
     for (size_t i = 0; i < replicas_cnt; i++)
     {   
-        int ret = block_replica_open(path, fi, configs[i], file_handlers, i);
+        int ret = 0;
+        switch (configs[i].type)
+        {
+            case BLOCK:
+            log_debug("[open] Block replica");
+            ret = block_replica_open(path, fi, configs[i], file_handlers, next_free_fh);
+            break;
+            case MIRROR:
+            log_debug("[open] Mirror replica");
+            ret = mirror_replica_open(path, fi, configs[i], file_handlers, next_free_fh);
+            break;
+        }
         log_debug("[open] handler: %d", file_handlers[i]);
         if (ret == -1)
         {
             // Read error
+        } else
+        {
+            next_free_fh += ret;
         }
     }
      
@@ -176,16 +238,133 @@ static int do_open(const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
-int block_replica_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi, replica_config_t config, size_t number)
+
+/* 
+* TODO: different sizes
+*/
+int decode_hamming(char *buf, size_t size, char *parity_buf, int *damaged_buf, replica_config_t config)
 {
-    log_debug("[block_replica_read] Running");
+    int c = 0;
+
+    //P0 = D0 + D1 + D3 + D4 + D6
+    //P1 = D0 + D2 + D3 + D5 + D6
+    //P2 = D1 + D2 + D3 + D7
+    //P3 = D4 + D5 + D6 + D7
+    for (int i = 0; i < size; i++)
+    {
+        if (buf[i] == 0)
+        {
+            break;
+        }
+        char cur_byte = buf[i];
+        char cur_shift = (i % 2 ? 4 : 0);
+        char cur_parity = parity_buf[i/2] >> cur_shift;
+        int c = 0;
+
+        calculate_hamming(parity_buf, i, cur_byte);
+        printf("par: %d cur_par %d\n", (parity_buf[i/2]), parity_buf[i/2] >> cur_shift);
+        c |= (1 * getBit(cur_parity, 0)) ^ (parity_buf[i/2] & 0b0001);
+        c |= (2 * getBit(cur_parity, 1)) ^ (parity_buf[i/2] & 0b0010);
+        c |= (4 * getBit(cur_parity, 2)) ^ (parity_buf[i/2] & 0b0100);
+        c |= (8 * getBit(cur_parity, 3)) ^ (parity_buf[i/2] & 0b1000);
+        printf("c %d size %d %d \n", c, size, buf[i]);
+    
+        if (should_correct_errors(config) && c)
+        { 
+            int powered = 1;
+            for (int pow = 0; pow <=  4; pow++)
+            {
+                if (powered == c)
+                {
+                    c ^= powered;
+                    break;
+                } else
+                if (powered > c)
+                {
+                    buf[i] ^= 1 << (pow-2);
+                    break;
+                }
+                powered *= 2;
+            }
+        }
+        printf("c %d size %d %d \n", c, size, buf[i]);
+    }
+    
+    return 0;
+}
+
+int block_replica_read(const char *path, char *buffer, size_t *size, off_t offset, struct fuse_file_info *fi, replica_config_t config, size_t number)
+{
+    // Read depending on our options
+    int block_size = 4;
+    int start_block = offset / block_size;
+    int end_block = should_attach_redundant(config) ? config.paths_size - 1 : config.paths_size;
+    int diff = offset % block_size;
+    int total_read_bytes = 0;
+    int total_size = *size;
+    int ret = 0;
+
+    for (int current_block = start_block; current_block < end_block; current_block++)
+    {   
+        printf("TEST\n");
+        int i = current_block - start_block;
+        if (current_block == start_block)
+        {
+            ret = pread(*(hash_lookup(h, fi->fh)+number + current_block), buffer + total_read_bytes, (block_size - diff), diff);
+            *size -= (block_size - diff);
+        } else 
+        {
+            int size_to_read = (*size > block_size ? block_size : *size);
+            ret = pread(*(hash_lookup(h, fi->fh)+number + current_block), buffer + total_read_bytes, size_to_read, diff + (block_size * (i-1)));    
+            *size -= size_to_read;
+        }
+        if (ret == -1)
+        {
+            // ERROR
+        } else
+        {
+            total_read_bytes += ret;
+        }
+    }
+
+    // Redundancy
+    if (should_attach_redundant(config))
+    {
+        char *parity_buf = calloc(total_size, 1);
+        //char *corrected_buf = calloc(total_size, 1);
+        int *damaged_blocks = calloc(config.paths_size, sizeof(int));
+        ret = pread(*(hash_lookup(h, fi->fh)+number + end_block), parity_buf, total_size, 0);
+        if (ret == -1)
+        {
+            // Error
+        }
+        if (should_use_hamming(config))
+        {
+            ret = decode_hamming(buffer, total_size, parity_buf, damaged_blocks, config);
+        }
+        if (ret == -1)
+        {
+            // Errors detected
+        } else if (ret == 0)
+        {
+            // Errors corrected
+        }
+    }
+
+    return end_block - start_block;
+}
+
+int mirror_replica_read(const char *path, char *buffer, size_t *size, off_t offset, struct fuse_file_info *fi, replica_config_t config, size_t number)
+{
+    log_debug("[mirror_replica_read] Running");
 	// Read all
-    int ret = pread(*(hash_lookup(h, fi->fh)+number), buffer, size, offset);
+    int ret = pread(*(hash_lookup(h, fi->fh)+number), buffer, *size, offset);
     // Check  if we read properly
     if (ret == -1)
     {
         // Error
     }
+    *size -= ret;
     // Seperate data from redundant bytes
     // OR
     // read file from second tree for redundant bytes
@@ -203,29 +382,22 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
 	log_debug("[read] Path: %s", path);
     
     log_debug("[read] size: %d offset: %d fh1: %d fh2: %d", size, offset, *(hash_lookup(h, fi->fh)), *(hash_lookup(h, fi->fh)+1));
-/*  int a2 = pread(*(hash_lookup(h, fi->fh)), buffer, size, offset);
-
-    for (int i = 0; i < a2; i++)
-    {
-        unsigned char current_byte = buffer[i];
-        unsigned char calculated_parity = 0x00;
-        unsigned char proper_parity =( *(buffer+a2+i/2) >> (4 * ((i+1)%2) )) & 0x0f;
-
-        calc_parity(&calculated_parity, 0, current_byte); 
-        log_debug("[read] CALCULATED PARITY: %x", calculated_parity & 0x0f);
-        log_debug("[read] PROPER PARITY: %x", proper_parity);
-        
-        unsigned char xored = (calculated_parity ^ proper_parity) & 0x0f;
-        log_debug("[read] XORED: %x", xored);
-        if (xored)
-        {
-            log_debug("[read] PROPER CHAR: %x", (int) current_byte + (int) pow(2.0, (double)xored - 1.0));
-        }
-    }
-*/
+    size_t size_to_read = size;
+    int ret = 0;
     for (int i = 0; i < replicas_cnt; i++)
     {
-        int ret = block_replica_read(path, buffer, size, offset, fi, configs[i], i);
+        switch (configs[i].type)
+        {
+            case BLOCK:
+                log_debug("[read] Reading block replica");
+                ret = block_replica_read(path, buffer, &size_to_read, offset, fi, configs[i], i);
+            break;
+            case MIRROR:
+                log_debug("[read] Reading mirror replica");
+                ret = mirror_replica_read(path, buffer, &size_to_read, offset, fi, configs[i], i);
+            break;
+        }
+        
         switch (ret)
         {
             // Read failed, check errno
@@ -242,13 +414,13 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
             // All ok, returns amount of bytes read
             default:
                 log_debug("[read] Reading done");
-                return ret;
+                return size - size_to_read;
             break;
         }
     }
 
-
-    return 0;
+    // Return whole size but parts we didnt read
+    return size - size_to_read;
 }
 // zapisywac na koniec parzystosc wtedy stat bez niej i link nawet powinien dzialc
 static int do_chmod(const char *path,  mode_t mode)
@@ -298,17 +470,10 @@ static int do_release(const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
-
-char getBit(char byte, int bit)
-{
-    return (byte >> bit) % 2;
-}
-
 /* 
- * Might need to make it compatible for greater Hamming code size later on
- *
+ * TODO: greater Hamming code sizes
  */
-char* calc_parity(unsigned char* parity_buf, off_t pos, char current_byte)
+size_t calculate_hamming(unsigned char* parity_buf, off_t pos, char current_byte)
 {
         char p0, p1, p2, p3;
         p0 = getBit(current_byte, 0) ^ getBit(current_byte, 1) ^ getBit(current_byte, 3) ^ getBit(current_byte, 4) ^ getBit(current_byte, 6);
@@ -325,31 +490,97 @@ char* calc_parity(unsigned char* parity_buf, off_t pos, char current_byte)
         parity_buf[pos/2] <<= 1;
         parity_buf[pos/2] |= p0;
     
-    return 0; 
+    return 4; 
 }
 
-
-int write_to_replica(const char *path, const char *buf, size_t size,
-		    off_t offset, struct fuse_file_info *fi, replica_config_t config, int no_replica)
+/*
+* 0000 ABCD
+* A - when set, write redundant bytes to last block 
+*     when not set, attach redundant bytes to buf
+* D - when set, use Hamming code for correction
+*/
+int block_replica_write(const char *path, const char *buf, size_t *size,
+		    off_t offset, struct fuse_file_info *fi, replica_config_t config, int curnumber)
 {
-    unsigned char* parity_buf = (unsigned char*) calloc(size, 1);
-    for (int i=0;i<size;i++)
+    // Calculate redundancy
+    unsigned char* parity_buf = (unsigned char*) calloc(*size, 1);
+    size_t parity_size = 0;
+    if (should_use_hamming(config))
+    {
+        for (int i=0;i<*size;i++)
+        {
+            char current_byte = buf[i];
+            parity_size += calculate_hamming(parity_buf, i, current_byte);  
+        }
+    }
+    
+    // Write depending on our options
+    int block_size = 4;
+    int start_block = offset / block_size;
+    int end_block = should_attach_redundant(config) ? config.paths_size - 1 : config.paths_size;
+    int diff = offset % block_size;
+    
+    int total_written_bytes = 0;
+    int ret = 0;
+
+    for (int current_block = start_block; current_block < end_block; current_block++)
+    {   
+        printf("TEST\n");
+        int i = current_block - start_block;
+        if (current_block == start_block)
+        {
+            ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber + current_block), buf + total_written_bytes, (block_size - diff), diff);
+            *size -= (block_size - diff);
+        } else 
+        {
+            int size_to_write = (*size > block_size ? block_size : *size);
+            ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber + current_block), buf + total_written_bytes, size_to_write, diff + (block_size * (i-1)));    
+            *size -= size_to_write;
+        }
+
+        if (ret == -1)
+        {
+            // ERROR
+        } else
+        {
+            total_written_bytes += ret;
+        }
+    }
+
+    // Attach redundant information
+    if (should_attach_redundant(config))
+    {
+        ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber + end_block), parity_buf, parity_size, 0);
+           
+    }
+
+    return end_block - start_block;
+}
+/*
+* Calculate redundant bytes
+* Save buffer to file(s)
+*/
+int mirror_replica_write(const char *path, const char *buf, size_t *size,
+		    off_t offset, struct fuse_file_info *fi, replica_config_t config, int curnumber)
+{
+    unsigned char* parity_buf = (unsigned char*) calloc(*size, 1);
+    for (int i=0;i<*size;i++)
     {
         char current_byte = buf[i];
         //P0 = D0 + D1 + D3 + D4 + D6
         //P1 = D0 + D2 + D3 + D5 + D6
         //P2 = D1 + D2 + D3 + D7
         //P3 = D4 + D5 + D6 + D7
-        calc_parity(parity_buf, i, current_byte);  
+        calculate_hamming(parity_buf, i, current_byte);  
        
     }
     int ret;
-    ret = pwrite(*(hash_lookup(h, fi->fh)+no_replica), buf, size, offset);
+    ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber), buf, *size, offset);
     if (ret == -1)
     {
         return -1;
     }
-    ret = pwrite(*(hash_lookup(h, fi->fh)+no_replica), parity_buf, size/2, offset + size); 
+    ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber), parity_buf, *size/2, offset + *size); 
     if (ret == -1)
     {
         return -1;
@@ -368,11 +599,24 @@ static int do_write(const char *path, const char *buf, size_t size,
      * 4. On error, mark as dirty
      */
     log_debug("[do_write] Running ");
-    
+    // Stores return value of writing function
+    int val;
+    size_t returned_size = size;
     for(int i = 0; i < replicas_cnt; i++)
     {
-        // Write to replica if usable 
-        int val = write_to_replica(path, buf, size, offset, fi, configs[i], i);
+        switch (configs[i].type)
+        {
+            case MIRROR:
+                log_debug("[do_write] Mirror replica ");
+                // Write to replica if usable 
+                val = mirror_replica_write(path, buf, &returned_size, offset, fi, configs[i], i);      
+            break;
+            case BLOCK:
+                log_debug("[do_write] Block replica ");
+                // Write to replica if usable 
+                val = block_replica_write(path, buf, &returned_size, offset, fi, configs[i], i);
+            break;
+        }
         // If failed, take action depending on value of errno (see man write(2))
         if (val == -1)
         {
@@ -387,15 +631,56 @@ static int do_write(const char *path, const char *buf, size_t size,
         configs[i].status = DIRTY;
     }
    
-    return size*3/2;
+    return size - returned_size;
 }
 
+int block_replica_create(const char *path, mode_t mode, struct fuse_file_info *fi, replica_config_t config, size_t number)
+{
+    
+}
+
+int mirror_replica_create(const char *path, mode_t mode, struct fuse_file_info *fi, replica_config_t config, size_t number)
+{
+    
+}
+
+// Create and open
+static int do_create(const char *path, mode_t mode, struct fuse_file_info *fi)
+{
+    log_debug("[do_create] Running ");
+    // Stores return value of writing function
+    int val;
+    for(int i = 0; i < replicas_cnt; i++)
+    {
+        switch (configs[i].type)
+        {
+            case MIRROR:
+                log_debug("[do_write] Mirror replica ");
+                val = mirror_replica_create(path, mode, fi, configs[i], i);      
+            break;
+            case BLOCK:
+                log_debug("[do_write] Block replica ");
+                val = block_replica_create(path, mode, fi, configs[i], i);
+            break;
+        }
+        if (val == -1)
+        {
+            switch(errno)
+            {
+                case EBADF:
+                        
+                        break;
+            }
+        }
+    }
+}
 
 
 static struct fuse_operations operations = {
     .getattr = do_getattr,
     .readdir = do_readdir,
     .read = do_read,
+    .create = do_create,
 
     .open = do_open,
     .write = do_write,
@@ -408,34 +693,81 @@ static struct fuse_operations operations = {
 
 int main(int argc, char* argv[]) {
     h = hash_new(15);
-
+    char** fuse_argv = calloc(argc, sizeof(char*)); 
+    int fuse_argv_c = 1;
+    int replica_configs_c = 0;
+    fuse_argv[0] = argv[0];
     if (argc < 2)
     {
         printf("Need arguments \n");
     }
-
-    replicas_cnt = (int) strtol(argv[1], (char**) NULL, 10);
-    char** fuse_argv = calloc(argc, sizeof(char*)); 
-    configs = calloc(replicas_cnt, sizeof(replica_config_t));
-    for (int i = 0; i < replicas_cnt; i++)
+    for (int curarg = 1; curarg < argc; curarg++)
     {
-         char* path = xlate(argv[2+i],getenv("PWD"));
-         configs[i].paths = calloc(1, sizeof(char*));
-         configs[i].paths[0] = path;
-         configs[i].status = CLEAN;
-         configs[i].type = MIRROR;
-         configs[i].flags = 0x00;
-         configs[i].priority = 0;
-         printf("Replica: %s\n", configs[i].paths[0]);
-         printf("Replica: %s\n", argv[4]);
+        printf("%s\n", argv[curarg]);
+        if (!strcmp(argv[curarg], "--number") )
+        {
+            printf(  "ENTER %s\n", argv[curarg]);
+            replicas_cnt = (int) strtol(argv[curarg+1], (char**) NULL, 10);
+            configs = calloc(replicas_cnt, sizeof(replica_config_t));
+            curarg++;
+            continue;
+        } else if (!strcmp(argv[curarg], "--block-replica") )
+        {
+            int blocks_cnt = (int) strtol(argv[curarg+1], (char**) NULL, 10);
+            int flags = (int) strtol(argv[curarg+2], (char**) NULL, 2);
+            configs[replica_configs_c].paths = calloc(blocks_cnt, sizeof(char*));
+            configs[replica_configs_c].paths_size = blocks_cnt;
+            
+            for (int i = 0; i < blocks_cnt; i++)
+            {
+                char *curpath = argv[curarg+3+i];
+                if (curpath[0] != '/')
+                {
+                    char *envpath = getenv("PWD");
+                    strncat(envpath, "/", 1);
+                    curpath = xlate(curpath, envpath);
+                }
+                configs[replica_configs_c].paths[i] = curpath;
+                printf("Replica %d: %s\n", i, configs[replica_configs_c].paths[i]);
+            }
+            configs[replica_configs_c].status = CLEAN;
+            configs[replica_configs_c].type = BLOCK;
+            configs[replica_configs_c].flags = flags;
+            configs[replica_configs_c].priority = 0;
+            printf("Replica: %s\n", argv[4]);
+            replica_configs_c++;
+            curarg+= 2 + blocks_cnt;
+            continue;
+        } else if (!strcmp(argv[curarg], "--mirror-replica") )
+        {
+            char* curpath = argv[curarg+1];
+            // Absolute path
+            if (curpath[0] != '/')
+            {
+                char *envpath = getenv("PWD");
+                strncat(envpath, "/", 1);
+                curpath = xlate(curpath, envpath);
+            }
+            configs[replica_configs_c].paths = calloc(1, sizeof(char*));
+            configs[replica_configs_c].paths[0] = curpath;
+            configs[replica_configs_c].paths_size = 1;
+            
+            configs[replica_configs_c].status = CLEAN;
+            configs[replica_configs_c].type = MIRROR;
+            configs[replica_configs_c].flags = 0b00000001;
+            configs[replica_configs_c].priority = 0;
+            printf("Replica: %s\n", configs[replica_configs_c].paths[0]);
+            printf("Replica: %s\n", argv[4]);
+            replica_configs_c++;
+            curarg++;
+            continue;
+        }
+        else
+        {
+            fuse_argv[fuse_argv_c++] = argv[curarg];
+        }
+
     }
 
-    fuse_argv[0] = argv[0];
-    for(int i = 2+replicas_cnt; i < argc; i++)
-    {
-        printf("arg: %s\n", argv[i]);
-        fuse_argv[i-1-replicas_cnt] = argv[i];
-    }
-
-	return fuse_main(argc-1-replicas_cnt, fuse_argv, &operations, NULL);
+	return fuse_main(fuse_argv_c, fuse_argv, &operations, NULL);
 }
