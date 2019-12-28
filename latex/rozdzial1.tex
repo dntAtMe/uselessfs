@@ -11,10 +11,10 @@ Struktura systemu w założeniu jest rozłożona na warstwy. To znaczy, że każ
 
 Założenia omawianego modelu:
 \begin{itemize}
-    \item Obsługa kilku różnych rozwiązań redundancji
-    \item Obsługa wielu replik dla większego bezpieczeństwa danych 
+    \item Obsługa różnych rozwiązań redundancji
+    \item Obsługa wielu kopii danych w celu zwiększenia bezpieczeństwa
     \item Wybór najodpowiedniejszej repliki do odczytu danych
-    \item Synchronizacja istniejących danych pomiędzy replikami przy zamontowaniu systemu plików
+    \item Synchronizacja już stniejących danych pomiędzy kopiami
 	\item Obsługa przynajmniej podstawowych zachowań systemu plików:
 		\begin{itemize}
 			\item Czytanie oraz pisanie do plików
@@ -22,23 +22,23 @@ Założenia omawianego modelu:
 		\end{itemize}
 	\item Detekcja błędów:
 		\begin{itemize}
-			\item Sprawdzanie, czy pliki, na których dokonywane są operacje, nie są uszkodzone
-			\item Sprawdzanie synchronizacji danych między replikami
+			\item Walidacja poprawności danych w pliku podczas odczytu
+			\item Walidacja poprawności plików między kopiami 
 		\end{itemize}
 	\item Korekcja błędów:
 		\begin{itemize}
 			\item Zastosowanie kodów korekcyjnych
-			\item Całkowite zastępowanie uszkodzonych danych replikami
+			\item Całkowite zastępowanie uszkodzonych plików poprawnymi kopiami
 		\end{itemize}
-    \item Wygoda uzytkowania
+    \item Wygoda użytkowania
 \end{itemize}
 
-\section{System plikow}
-omowic korzystanie z fuse gotowy interfejs focus na redundancji
+\section{System plików}
+Do implementacji systemu plików wykorzystano interfejs FUSE, moduł w Unixowych jądrach pozwalający na tworzenie systemu plików w przestrzeni użytkownika. To rozwiązanie pozwala skupić się na tworzeniu pożądanej funkcjonalności, bez potrzeby schodzenia do poziomu jądra systemu. Projekt został zbudowany jako wirtualny system plików. Skupia się na translacji danych które otrzymuje, resztą zajmuje się nadrzędny system plików oraz moduł FUSE. 
 
 \section {Redundancja danych}
 Nadmiarowość zapisywanych informacji jest często stosowana w celu wykrycia uszkodzonych danych lub zabezpieczenia ich przed utratą po częściowym, czy całkowitym uszkodzeniu.
-Redundancja danych stanowi najwazniejsze zagadnienie rozwazanej pracy. Zaproponowano kilka roznych rozwiazan, aby przedstawic pozadany zakres mozliwosci systemu. Rozwiazania oparte sa na macierzy RAID ze wzgledu na ich skutecznosc oraz mozliwosc tworzenia kombinacji standardowych poziomow.
+Redundancja danych stanowi najwazniejsze zagadnienie rozwazanej pracy. Zaproponowano kilka roznych rozwiazan, aby przedstawic zakres mozliwosci systemu. Rozwiazania oparte sa na macierzy RAID ze wzgledu na ich skutecznosc oraz mozliwosc tworzenia kombinacji standardowych poziomow.
 
 \subsection {RAID}
 Redundant Array of Independent Disks to metoda wirtualizacji przechowywania danych. Wykorzystuje wiele dyskow i laczy je w logiczne jednostki pamieci. RAID jest stosowane do redundancji danych oraz lepszej wydajnosci, jednak w niniejszej pracy wydajnosc systemu nie bedzie rozwazana.  
