@@ -3,8 +3,6 @@
 \label{rozdzial1}
 W niniejszym rozdziale omówiono problem redundancji oraz powiązanych pojęć, czyli detekcji i korekcji błędów. Opisano rownież zastosowane rozwiązania w ogólnym modelu systemu oraz relacje pomiędzy komponentami pracy, które wykorzystano w celu osiągnięcia jak największej niezawodności danych.
 
-Chociaż istnieją systemy plików umożliwiające zarówno odzyskiwanie, jak i zabezpieczanie danych przed uszkodzeniami\cite{Java}, omawiany projekt w założeniu działa inaczej niż znalezione, w pełni funkcjonalne, systemy. Przeważnie redundantne systemy plików są tworzone z myślą o grupach dysków, łącząc je we wspólną jednostkę logiczną. Zastosowane rozwiązania do odzyskiwania danych są często zakorzenione głęboko w logice takie systemu, znacząco utrudniając wprowadzanie nowych rozwiązań.
-
 Implementowany projekt należy do grupy wirtualnych systemów plików, co pozwala na łatwe oraz intuincyjne montowanie w dowolnym miejscu dla wybranych katalogów, przez co w różnych miejscach nadrzędnego systemu plików mogą być zamontowane różne metody redundancji danych. Możliwe jest również wykorzystanie różnych nośników danych. 
 
 Struktura systemu w założeniu jest rozłożona na warstwy. To znaczy, że każda opisywana funkcjonalność jak kodowanie czy odzyskiwanie plików jest niezależna od pozostałych i działają bez znajomości poprzedzających warstw. Takie rozwiązanie ułatwia dodawanie kolejnych funkcjonalności, czy uzupełnianie obecnych o nowe implementacje.
