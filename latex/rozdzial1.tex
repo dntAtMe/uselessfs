@@ -5,14 +5,14 @@ W niniejszym rozdziale omówiono problem redundancji oraz powiązanych pojęć, 
 
 Implementowany projekt należy do grupy wirtualnych systemów plików, co pozwala na łatwe oraz intuincyjne montowanie w dowolnym miejscu dla wybranych katalogów, przez co w różnych miejscach nadrzędnego systemu plików mogą być zamontowane różne metody redundancji danych. Możliwe jest również wykorzystanie różnych nośników danych. 
 
-Struktura systemu w założeniu jest rozłożona na warstwy. To znaczy, że każda opisywana funkcjonalność jak kodowanie czy odzyskiwanie plików jest niezależna od pozostałych i działają bez znajomości poprzedzających warstw. Takie rozwiązanie ułatwia dodawanie kolejnych funkcjonalności, czy uzupełnianie obecnych o nowe implementacje.
+Struktura systemu w założeniu jest rozłożona na warstwy. To znaczy, że każda opisywana funkcjonalność jak kodowanie czy odzyskiwanie plików jest niezależna od pozostałych i działają bez znajomości poprzedzających warstw. Takie rozwiązanie ułatwia dodawanie kolejnych funkcjonalności, czy rozszerzanie obecnych o nowe implementacje.
 
-Założenia omawianego modelu:
+Założenia omawianego systemu:
 \begin{itemize}
     \item Obsługa różnych rozwiązań redundancji
-    \item Obsługa wielu kopii danych w celu zwiększenia bezpieczeństwa
-    \item Wybór najodpowiedniejszej repliki do odczytu danych
-    \item Synchronizacja już stniejących danych pomiędzy kopiami
+    \item Obsługa wielu kopii plików w celu zwiększenia niezawodności danych
+    \item Wybór najodpowiedniejszej repliki do odczytu pliku 
+    \item Synchronizacja już stniejących plików pomiędzy kopiami
 	\item Obsługa przynajmniej podstawowych zachowań systemu plików:
 		\begin{itemize}
 			\item Czytanie oraz pisanie do plików
@@ -94,7 +94,7 @@ Repliki korekcyjne dodają funkcjonalność do standardowej, dlatego zostały om
 
 W przypadku trwałej awarii repliki takiej jak uszkodzenie dysku, replika zostaje oznaczona jako nieaktywna i nie są podejmowane kolejne próby odczytu czy zapisu danych.
 \subsubsection{Repliki Lustrzane (MR)}
-Oparte na schemacie RAID-1 repliki tego typu stanowią lustrzane odbicie danych. Funkcjonalność takie systemu jest równa systemowi nadrzędnemu. 
+Oparte na schemacie RAID-1 repliki tego typu stanowią lustrzane odbicie danych. Każdy plik występuje dokładnie raz we wszystkich replikach lustrzanych.
 \begin{itemize}
         \item Naprawia błędy innych replik kopiując całe pliki
         \item Wszystkie dane zamontowane w jednym miejscu. W przypadku, kiedy jeden dysk zostanie uszkodzony, dane zostają utracone.
@@ -107,14 +107,14 @@ Oparte na schemacie RAID-1 repliki tego typu stanowią lustrzane odbicie danych.
         \label{fig:raid1}
 \end{figure}
 
-Standardowe MR nie są w stanie naprawić uszkodzonych plików. Jedynym rozwiązaniem jest zastąpić uszkodzone pliki w całości danymi z innej repliki. Niestandardowymi MR nazywa się repliki lustrzane z korektą błędów.
+Standardowe MR nie są w stanie naprawić uszkodzonych plików. Jedynym rozwiązaniem jest zastąpić uszkodzone pliki w całości danymi z innej repliki. Repliki lustrzane z korektą błędów opisane w dalszej części pracy rozszerzają funkcjonalność podstawowych replik.
 \subsubsection{Repliki Blokowe (BR)}
 W replikach tego typu pliki są rozkładane na części i zapisywane w kolejnych katalogach będących odpowiednikiem dysków poziomu RAID-0. Tak samo katalogi mogą być rozmieszczone na różnych urządzeniach przechowujących. Każdy z katalogów może również być repliką. Jedna część pliku nazywana jest dalej blokiem.
 Rozkład danych jest możliwy na dwa sposoby:
 \begin{itemize}
-    \item Pliki podzielone na stałą ilość bloków o zmiennych wielkościach. 
+    \item Pliki podzielone na stałą ilość bloków. 
 
-            Zmiana wielkości pliku może powodować zmianę rozmiaru wszystkich bloków danego pliku dla wyrównania wielkości, lub jedynie tego bloku, do którego dane zostają dopisane. W takim wypadku bloki nie są jednakowych rozmiarów.
+            Zmiana wielkości pliku może powodować zmianę rozmiaru wszystkich bloków danego pliku dla wyrównania wielkości, lub jedynie tego bloku, do którego dane zostają dopisane. W takim wypadku bloki nie są jednakowych rozmiarów. Możliwe jest ograniczenie rozmiaru pojedynczego bloku, tym samym ograniczając maksymalny rozmiar pliku.
             \begin{figure}[h!]
                     \centering
                     \includegraphics{BR-1.png}
@@ -132,7 +132,7 @@ Rozkład danych jest możliwy na dwa sposoby:
             \end{figure}
  
 \end{itemize}
-Standardowe repliki blokowe nie są w stanie naprawić uszkodzonych plików, jednak taki podział danych wpłynie korzystnie na repliki korekcyjne i jest szczególnie przydatny dla wielu dysków. Jeśli replika blokowa działa na $n$ blokach, działa również po awarii na $n-1$ dyskach dla $n < 1$.
+Standardowe repliki blokowe nie są w stanie naprawić uszkodzonych plików, jednak taki podział danych wpłynie korzystnie na repliki korekcyjne i jest szczególnie przydatny dla wielu dysków. Jeśli replika blokowa działa na $n$ blokach, działa również po awarii na $n-1$ dyskach dla $n < 1$. Dodatkowo, replika blokowa rozszerzona o korekcję danych, może odzyskać utracony blok danych.
 
 W przypadku awarii jednego z bloków repliki, replika jest nadal aktywna wtedy i tylko wtedy, jeśli odzyskano utracone dane i replika jest nadal w pełni funkcjonalna. Jeśli awarii uległ ostatni blok, a system nie może ustalowić nowej lokalizacji dla przynajmniej jednego bloku, replika zostaje uznana za nieaktywną.
 \begin{itemize}
@@ -159,7 +159,9 @@ Kody Hamminga mają określony minimalną odległość $H_D = 3$, więc z powyż
 
 
 \subsection{Sumy kontrolne}
-    
+    W celu weryfikacji, czy dane znajdujące się w pliku nie uległy niepożądanej zmianie, operacje wpływające na zawartość pliku obliczają sumę kontrolną. Niezgodność sumy zapisanej z wyliczoną podczas próby odczytu znacza wystąpienie błędu w danych pliku lub w samej sumie kontrolnej. 
+
+    Suma kontrolna jest dołączana do sprawdzanych danych, lub jako osobny plik. 
 \section {Korekcja błędów}
 Kodowanie korekcyjne umozliwia wykrywanie i korygowanie okreslonych bledow. Kod korekcyjny jest zapisywany w formie redundantnej wraz z danymi, kodujac wartosci bitow podczas zapisu. W przypadku wystapienia złych bitów podczas odczytu, kody korekcyjne mogą spróbować naprawić znalezione błędy bez wiedzy użytkownika.
 \subsection{Kod Hamminga}
@@ -185,15 +187,17 @@ Dla replik blokowych, ze względu na ich rozproszoną strukturę, przedstawiono 
 \end{itemize}
 
 \section {Synchronizacja replik}
-Kiedy dane zostana uszkodzone, albo omawiany system plikow zostanie zamontowany w dowolnym momencie, zachodzi potrzeba synchronizacji pomiedzy replikami. Stad repliki moga znajdowac sie w przynamniej dwoch stanach. W przypadku wykrycia desynchronizacji, brakujace lub uszkodzone dane powinny zostac naprawione informacjami z pozostalych replik. Obslugiwane scenariusze desynchronizacji:
+Kiedy wirtualny system plikow zostanie zamontowany, nie wiadomo jakie pliki znajdują się pod folderami wskazanymi jako repliki, zachodzi więc potrzeba synchronizacji plików pomiedzy replikami. Stąd repliki mogą znajdować się w przynamniej dwóch stanach. W przypadku wykrycia desynchronizacji, brakujące lub uszkodzone dane powinny zostać naprawione informacjami z pozostałych replik. Obslugiwane scenariusze desynchronizacji:
 \begin{itemize}
-    \item Brakujace dane w jednej z replik podczas montowania systemu pliku lub proby odczytu
-    \item Rozniace sie miedzy soba dane pomiedzy replikami podczas montowania systemu plikow lub proby odczytu
+    \item Brakujące dane w jednej z replik podczas montowania systemu pliku
+    \item Różniące się między soba dane pomiędzy replikami podczas montowania systemu plików
 \end{itemize}
-Kiedy nastepuje proba odczytu brakujacego pliku w wybranej replice, system moze sprawdzic obecnosc tego pliku w pozostalych miejscach. Jesli znajduje, nastepuje synchronizacja replik z brakujacymi danymi. Jesli podczas poczatkowej synchronizacji replik system wykryje rozne dane w tych samych plikach, wystepuje konflikt. 
+Kiedy następuje próba odczytu brakującego pliku w wybranej replice, system może sprawdzić obecność tego pliku w pozostałych miejscach. Jeśli znaleziono, następuje synchronizacja replik z brakującymi danymi. 
 
-\section {Sposob uzytkowania}
-Jak najwiecej funkcji systemu, takich jak podzial na repliki czy nawet podzial plikow na bloki,  powinno byc niewidoczne dla uzytkownika. Operacje detekcji, czy naprawy bledow oraz synchronizowanie replik odbywaja sie w tle.
+Jeśli podczas synchronizacji replik system wykryje różne dane w kopiach tego samego pliku i wszystkie kopie zostaną oznaczone jako niepoprawne, występuje konflikt. Taki konflikt może rozwiązać jedynie użytkownik.  
 
-Uzytkownik powinien byc informowany o zachodzacych procesach wylacznie w przypadku, kiedy system nie moze dalej samodzielnie operowac. Konflikty podczas synchronizacji powinny byc rozwiazywane przez uzytkownika, ktory decyduje na podstawie zawartosci plikow wywolujacych konflikt.
+\section {Sposób użytkowania}
+Działanie systemu, takie jak podział na repliki czy podział plików na bloki, powinno być niewidoczne dla użytkownika. Detekcja, czy naprawa błędów oraz synchronizowanie replik odbywa się w tle.
+
+Użytkownik jest stale informowany o zachodzących procesach, a system zatrzymuje działanie wyłącznie kiedy nie może dalej samodzielnie operować. Konflikty podczas synchronizacji są rozwiązywane przez użytkownika, który wybiera najlepszą opcję na podstawie zawartości plików wywołujących konflikt.
 

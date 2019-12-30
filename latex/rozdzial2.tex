@@ -2,7 +2,8 @@
 \thispagestyle{chapterBeginStyle}
 W tym rozdziale przedstawiono scenariusze oraz przypadki uzycia systemu, na koncu znajduje sie diagram przedstawiajacy zachowanie systemu w okreslonych sytuacjach. Omowiono i przedstawiono w postaci pseudokodu algorytmy zastosowane w systemie. 
 
-\section{Grupy użytkowników i założenia}
+\section{Założenia i ograniczenia}
+wyłącznie foldery i pliki tekstowe, bez linków itd, podstawowe operacje z czego to wynika podział danych
 
 {\color{dgray}
 Architektura systemu \ldots jest wielowarstwowa i rozproszona, przy czym \ldots. Podsystem  \ldots jest systemem zbiorczym dla danych \ldots wysyłanych do serwera \ldots. 
@@ -260,6 +261,34 @@ $B \leftarrow B \setminus \{b\}$\;
 }
 }
 \caption{Wybor najlepszej repliki}\label{alg:mine}
+\end{pseudokod}
+}
+
+{\small
+\begin{pseudokod}[H]
+%\SetAlTitleFnt{small}
+\caption{Odczyt danych z pliku}\label{alg:mine}
+\end{pseudokod}
+}
+
+{\small
+\begin{pseudokod}[H]
+%\SetAlTitleFnt{small}
+\caption{Zapis danych do pliku}\label{alg:mine}
+\end{pseudokod}
+}
+
+{\small
+\begin{pseudokod}[H]
+%\SetAlTitleFnt{small}
+\caption{Tworzenie nowego pliku}\label{alg:mine}
+\end{pseudokod}
+}
+
+{\small
+\begin{pseudokod}[H]
+%\SetAlTitleFnt{small}
+\caption{Usuwanie pliku}\label{alg:mine}
 \end{pseudokod}
 }
 
