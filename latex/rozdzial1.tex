@@ -45,39 +45,40 @@ RAID jest zbiorem schematow rozwiazan, ktore nazywane sa poziomami. Na potrzeby 
 RAID-0 jako jedyny poziom RAID wprowadza zerowa redundancje. Laczy przynajmniej dwa fizyczne nosniki danych w jeden dysk logiczny i w tej przestrzeni przeplata dane pomiedzy dyskami. Dane sa dzielone na bloki o stalym rozmiarze. Poziom 0 w zaden sposob nie zapewnia niezawodnosci danych, jednak stanowi podstawe do innych poziomow. Wykorzystanie przeplotu danych na wiele dyskow usprawnia operacje odczytu i zapisu wykonujac je rownolegle na wszystkich dyskach macierzy.
 \begin{figure}[h!]
         \centering
-        \includegraphics{raid-0.png}
+        \includegraphics[scale=0.8]{raid-0.png}
         \caption{RAID-0 z trzema dyskami}
         \label{fig:raid0}
 \end{figure}
+\newpage
 \subsubsection{Poziom 1}
 RAID-1 dziala na przynajmniej dwoch dyskach. Dane sa zapisywane do wszystkich dyskow, tworzac lustrzane odbicia. Z tego wzgledu czas wykonywania dowolnych operacji jest rowny sumie czasu trwania danej operacji na wszystkich dyskach, jednak mozliwe jest przyspieszenie dzialania. RAID-1 chroni przed utrata $(n-1)$ dyskow macierzy, jednak przez to wymaga duzej ilosci miejsca; dla $n$ dyskow o rozmiarze $m$ potrzebne jest $n\times m$ wolnej przestrzeni.
 \begin{figure}[h!]
         \centering
-        \includegraphics{raid-1.png}
+        \includegraphics[scale=0.8]{raid-1.png}
         \caption{RAID-1 z dwoma dyskami}
         \label{fig:raid1}
 \end{figure}
 \subsubsection{Poziom 2}
-Podobnie do RAID-0, dane sa dzielone miedzy dyskami. W przypadku poziomu drugiego, dane sa dzielone na pojedyncze bity, a kazdy bit jest zapisywany na kolejnym dysku. RAID-2 wykorzystuje kod Hamminga do korekcji wystepujacych bledow, wszystkie bity kodu znajduja sie w odpowiednich dyskach i  pozwalaja na odzyskanie jednego uszkodzonego dysku. 
-\begin{figure}[h!]
+Podobnie do RAID-0, dane sa dzielone miedzy dyskami. W przypadku poziomu drugiego, dane sa dzielone na pojedyncze bity, a kazdy bit jest zapisywany na kolejnym dysku. RAID-2 wykorzystuje kod Hamminga do korekcji wystepujacych bledow, wszystkie bity kodu znajduja sie w odpowiednich dyskach i  pozwalaja na odzyskanie danych z jednego uszkodzonego dysku. 
+\begin{figure}[h!tb]
         \centering
-        \includegraphics{raid-2.png}
+        \includegraphics[scale=0.8]{raid-2.png}
         \caption{RAID-2 na siedmiu dyskach}
         \label{fig:raid2}
 \end{figure}
 \subsubsection{Poziom 4}
-t
+Dane sa dzielone na bloki ograniczonej wielkosci i tak jak w przypadku poziomu 0, kazdy blok jest zapisywany na kolejnym dysku. Do przechowywania danych sluzy $n-1$ dyskow. Dla kazdego rzedu zapisanych danych obliczany jest blok parzystosci na osobnym dysku. Po uszkodzeniu jednego z dyskow pojedynczy blok moze zostac odzyskany.
 \begin{figure}[h!]
         \centering
-        \includegraphics{raid-4.png}
+        \includegraphics[scale=0.8]{raid-4.png}
         \caption{RAID-4 na trzech dyskach}
         \label{fig:raid4}
 \end{figure}
 \subsubsection{Poziom 5}
-t
+Dane sa dzielone i bity parzystosci sa obliczane podobnie do poprzedniego poziomu, jednak bloki parzystosci obliczane z $n-1$ blokow danych nie sa zapisywane na dedykowanym dysku, tylko rozkladane rownomiernie na wszystkich dyskach macierzy. Stad dostepna pojemnosc to rowniez $n-1$ i mozliwe jest odzyskanie jednego uszkodzonego dysku.
 \begin{figure}[h!]
         \centering
-        \includegraphics{raid-5.png}
+        \includegraphics[scale=0.8]{raid-5.png}
         \caption{RAID-5 na trzech dyskach}
         \label{fig:raid5}
 \end{figure}
@@ -146,10 +147,8 @@ W celu ulatwienia rozszerzalnosci dzialania replik, kolejne funkcjonalnosci skla
 
 \section {Detekcja błędów}
     Wykrywanie bledow ma kluczowe znaczenie w dzialaniu opisywanego systemu. Po znalezieniu bledow plikow, moze nastapic proba naprawienia badz zastapienia uszkodzonych danych bez potrzeby ingerencji uzytkownika. Wszystkie techniki detekcji bledow dodaja kolejne bity do zapisu, tym samym zwiekszajac redundancje w systemie. Korzystanie z kontroli bledow niesie za soba wykonywanie dodatkowych obliczen nawet podczas wykonywania podstawowych operacji na plikach, za kazdym razem sprawdzajac poprawnosc danych. Kazda metoda ma kilka roznych rozkladow danych wynikajacych ze struktury replik. Niektore metody detekcji przy odpowiednich warunkach moga od razu dokonywac korekty wykrytych bledow, co zostalo dokladniej opisane w kolejnym punkcie.
-\subsection{Parzystosc}
 \subsection{Kod Hamminga}
 Kod Hamminga jest kodem korekcyjnym, wykrywa i naprawia błędy pojedynczego bitu. Chociaż szczegóły części korekcji zostają omówione w dalszej części pracy, kod Hamminga zostaje również wykorzystany do samej detekcji błędów dwóch bitów.
-
 Odległość Hamminga $H_D$ mierzy liczbę miejsc, w których dwa ciągi o tej samej długości różnią się od siebie. Minimalna odległóść Hamminga dla kodu to najmniejsza odległość pomiędzy dowolnymi dwoma słowami z kodu. Dla kodów określa dwie ważne dla opisywanego problemu własności:
 \begin{itemize}
         \item Kod  o minimalnej odległości $H_D = d$ może wykryć $(d-1)$ błędów
@@ -159,9 +158,14 @@ Kody Hamminga mają określony minimalną odległość $H_D = 3$, więc z powyż
 
 
 \subsection{Sumy kontrolne}
-    W celu weryfikacji, czy dane znajdujące się w pliku nie uległy niepożądanej zmianie, operacje wpływające na zawartość pliku obliczają sumę kontrolną. Niezgodność sumy zapisanej z wyliczoną podczas próby odczytu znacza wystąpienie błędu w danych pliku lub w samej sumie kontrolnej. 
+    W celu weryfikacji, czy dane znajdujące się w pliku nie uległy niepożądanej zmianie, operacje wpływające na zawartość pliku obliczają sumę kontrolną. Niezgodność sumy zapisanej z wyliczoną podczas próby odczytu oznacza wystąpienie błędu w danych pliku lub w samej sumie kontrolnej. Sumy kontrolne zapewniaja spojnosc danych i sa dołączane na koniec sprawdzanych danych, lub jako osobny plik. 
+\subsubsection{Funkcje skrotu}
+Funkcje skrotu sa wykorzystywane do tworzenia krotkich, latwych do zweryfikowania, podpisow. Obliczone sygnatury sa dolaczane do danych i chronia przed nieautoryzowanymi modyfikacjami danych. Funkcje skrotu zwracaja kod stalego rozmiaru dla zbioru danych o dowolnej wielkosci. Funkcja przechodzi ze zbioru ciagow dowolnej dlugosci do zbioru kodow o stalej dlugosci, wiec moze dojsc do kolizji. Kolizja wystepuje kiedy dla dwoch roznych od siebie slow kodowanych funkcja zwraca te sama wartosc, uniemozliwiajac wykrycie zmiany w zapisanych danych. 
+\subsubsection{Kontrola parzystosci}
+Do zapisywanych danych mozna dopisac dodatkowe informacje o parzystosci ustawionych bitow. Niech slowo kodowane $x \in (0,1)^n$ dla pewnego $n \ge 1$. Wtedy mozliwe jest obliczenie $x_p = x_1 \oplus x_2 \oplus \cdots \oplus x_k$ dla $x_i$ takich, ze $x_i = 1$. $x_p = 0$ jesli ilosc jedynek jest parzysta, $x_p$ w przeciwnym wypadku. 
 
-    Suma kontrolna jest dołączana do sprawdzanych danych, lub jako osobny plik. 
+Niepozadana zmiana nieparzystej ilosci bitow zostanie wykryta, poniewaz funkcja $xor$ przybierze wartosc przeciwna poprzedniej. Zmiany parzystej ilosci bitow pozostana niezauwazane.
+
 \section {Korekcja błędów}
 Kodowanie korekcyjne umozliwia wykrywanie i korygowanie okreslonych bledow. Kod korekcyjny jest zapisywany w formie redundantnej wraz z danymi, kodujac wartosci bitow podczas zapisu. W przypadku wystapienia złych bitów podczas odczytu, kody korekcyjne mogą spróbować naprawić znalezione błędy bez wiedzy użytkownika.
 \subsection{Kod Hamminga}
@@ -170,8 +174,8 @@ Dla zwiększenia skuteczności kodowanie, do kodu zostaje dodany dodatkowy bit p
 \subsection{Kodowanie Reeda-Solomona}
 TODO
 \subsection{Parzystość}
+Kontrola parzystosci pozwala odzyskac wartosc pojedynczego bitu danych. Jesli wartosc pojedynczego bitu zostala utracona, informacja o ilosci ustawionych bitow w kodowanym ciagu wystarcza, aby rozpoznac wartosc brakujacego bitu.  
 \subsection{Repliki korekcyjne}
-
 Dodanie metod korekcji błędów w replikach blokowych umożliwi odzyskiwanie całych bloków. Jeśli utracony blok posiadał jedynie kodowane dane, to traktując brakujący blok repliki jako zerowe bity, rozwiązania takie jak bity parzystości posiadają dostatecznie dużo informacji na temat danych, aby wyliczyć brakujące informacje. W takim wypadku repliki mogą zmienić lokalizację odzyskanego bloku danych lub dzielić dane na mniejszą ilość bloków. 
 
 Ważny jest rozkład danych przy dodatkowej redundancji wynikającej z dodania do słów obliczonych kodów. W przypadku replik lustrzanych, możliwe są dwa rozwiązania:
