@@ -1,6 +1,6 @@
 \chapter{Implementacja systemu}
 \thispagestyle{chapterBeginStyle}
-W niniejszym rozdziale przedstawiono szczegóły implementacyjne zaproponowanych rozwiązań. Kompletny kod źródłowy wraz z komentarzami znajduje się w załączniku do pracy.
+W niniejszym rozdziale przedstawiono szczegóły implementacyjne zaproponowanych rozwiązań. Kompletny kod źródłowy wraz z komentarzami oraz testami najduje się w załączniku do pracy.
 
 \section{Opis technologii}
 
@@ -9,11 +9,11 @@ System plików implementujący całą funkcjonalność przedstawionego systemu w
 FUSE jest wykorzystywany do tworzenia wirtualnych systemów plików (dalej nazywanych VFS). Niniejszy projekt jest klasyfikowany jako VFS, co ma znaczenie w dalszej części pracy.
 
 \section{Podział systemu na moduły}
-System plików został zaimplementowany z myślą i dalszym rozwoju projektu. Każda istniejąca replika może być zamontowana jako osobny system plików, główny moduł stanowi połączenie między tymi replikami. Dzięki temu rozwiązaniu, działanie całego systemu jest niezależne od zastosowanych rozwiązań redundancji.
+System plików został zaimplementowany z myślą o dalszym rozwoju. Każda istniejąca replika może być samodzielnie zamontowana jako system plików, ponieważ implementują wszystkie potrzebne do tego funkcje. Dodanie rozwiazan korekcji danych odbywa sie przez zaimplementowanie kodera oraz dekodera, a w istniejącym kodzie ograniczono ilość potrzebnych zmian. Główny moduł stanowi połączenie między resztą funkcjonalności takich jak repliki oraz kodowanie dodatkowych informacji. Manipuluje danymi oraz żądaniami użytkownika, przekazując je do odpowiednich modułów. Dzięki temu rozwiązaniu, działanie całego systemu jest niezależne od zastosowanych rozwiązań redundancji.
 
 \textit{obrazki}
 
-\section{Omówienie kodów źródłowych}
+\section{Omówienie rozwiązań}
 
 {\color{dgray}
 Kod źródłowy~\ref{ws} przedstawia opisy poszczególnych metod interfejsu: \texttt{WSPodmiotRejestracjaIF}. Kompletne
