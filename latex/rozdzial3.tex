@@ -4,9 +4,9 @@ W niniejszym rozdziale przedstawiono szczegóły implementacyjne zaproponowanych
 
 \section{Opis technologii}
 
-System plików implementujący całą funkcjonalność przedstawionego systemu wykorzystuje Filesystem in Userspace. Interfejs FUSE umożliwia tworzenie systemów plików w przestrzeni użytkownika. Bez schodzenia do poziomu kodu jądra systemu, interfejs ten pozwala skupić się na żądanej funkcjonalności.
+System plików implementujący całą funkcjonalność przedstawionego systemu wykorzystuje Filesystem in Userspace. Interfejs FUSE umożliwia tworzenie systemów plików w przestrzeni użytkownika. 
 
-FUSE jest wykorzystywany do tworzenia wirtualnych systemów plików (dalej nazywanych VFS). Niniejszy projekt jest klasyfikowany jako VFS, co ma znaczenie w dalszej części pracy.
+FUSE udostepnia biblioteke $libfuse$, do ktorej wymagany jest program implementujacy zadeklarowane funkcje. Okreslaja zachowanie sie systemu podczas zadan uzytkownika. Taki program moze zostac zamontowany jako system plikow, do ktorego jadro systemu wysyla zadania i przekazuje odpowiedz uzytkownikowi.
 
 \section{Podział systemu na moduły}
 System plików został zaimplementowany z myślą o dalszym rozwoju. Każda istniejąca replika może być samodzielnie zamontowana jako system plików, ponieważ implementują wszystkie potrzebne do tego funkcje. Dodanie rozwiazan korekcji danych odbywa sie przez zaimplementowanie kodera oraz dekodera, a w istniejącym kodzie ograniczono ilość potrzebnych zmian. Główny moduł stanowi połączenie między resztą funkcjonalności takich jak repliki oraz kodowanie dodatkowych informacji. Manipuluje danymi oraz żądaniami użytkownika, przekazując je do odpowiednich modułów. Dzięki temu rozwiązaniu, działanie całego systemu jest niezależne od zastosowanych rozwiązań redundancji.
@@ -15,7 +15,7 @@ System plików został zaimplementowany z myślą o dalszym rozwoju. Każda istn
 
 \section{Omówienie rozwiązań}
 
-{\color{dgray}
+color{dgray}
 Kod źródłowy~\ref{ws} przedstawia opisy poszczególnych metod interfejsu: \texttt{WSPodmiotRejestracjaIF}. Kompletne
 kody źródłowe znajdują się na płycie CD dołączonej do niniejszej pracy w katalogu \texttt{Kody} (patrz Dodatek~\ref{plytaCD}).
 }

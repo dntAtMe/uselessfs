@@ -371,16 +371,22 @@ int mirror_replica_read(const char *path, char *buffer, size_t *size, off_t offs
 
     // Check if data matches redundant information (ecc, parity, checksums) 
 
-    // If ok, return amount of bytes read
-    return ret;
+    // If ok, return amount file handlers used (might be up to 2?)
+    return 1;
 }
 
 // If read completely fails, mark replica as INACTIVE
+// begin_size - size in the end contains amount of bytes read 
 static int do_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) 
 {
 	log_debug("[read] Running");
 	log_debug("[read] Path: %s", path);
-    
+    //auto begin_size = size
+
+    // Choose replica
+    // Read
+    // Handle errors
+    // Return amount of read bytes
     log_debug("[read] size: %d offset: %d fh1: %d fh2: %d", size, offset, *(hash_lookup(h, fi->fh)), *(hash_lookup(h, fi->fh)+1));
     size_t size_to_read = size;
     int ret = 0;
