@@ -14,6 +14,8 @@
 #include <errno.h>
 #include "log.h"
 #include "hash.c"
+#include "md5.c"
+#include <openssl/md5.h>
 
 enum replica_status_t {CLEAN, DIRTY, INACTIVE};
 enum replica_type_t {BLOCK, MIRROR};
@@ -31,16 +33,16 @@ typedef struct replica_config_t
 replica_config_t *configs = NULL;
 
 #define FLAG_USE_HAMMING 1
-#define FLAG_HAMMING_EXTRA_BIT 2
+#define FLAG_USE_HAMMING_EXTRA_BIT 2
 #define FLAG_USE_PARITY 4
 #define FLAG_USE_CHECKSUM 8
-#define FLAG_CORRECT_ERRORS 16
+#define FLAG_CORRECT_ERRORS 16 // not really needed as there are bits set for specific ECCs
 #define FLAG_ATTACH_REDUNDANT 32
 #define FLAG_RESTRICT_BLOCKS 64
 
 unsigned short should_use_hamming(replica_config_t config)
 {
-    return config.flags & (FLAG_USE_HAMMING | FLAG_HAMMING_EXTRA_BIT);
+    return config.flags & (FLAG_USE_HAMMING | FLAG_USE_HAMMING_EXTRA_BIT);
 }
 
 unsigned short should_attach_redundant(replica_config_t config)
@@ -67,11 +69,11 @@ char getBit(char byte, int bit)
 
 hash_t *h;
 
-char src1[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r1";
-char src2[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r2";
+char src1[]="/home/kpieniaz/private/uselessfs/test2";
+char src2[]="/home/kpieniaz/private/uselessfs/test";
 int replicas_cnt;
 
-char* sources[] = {"/home/dntAtMe/code/fuse/uselessfs/workspace/r1", "/home/dntAtMe/code/fuse/uselessfs/workspace/r2"};
+char* sources[] = {"/home/kpieniaz/private/uselessfs/test", "/home/kpieniaz/private/uselessfs/test2"};
 
 char *xlate(const char *fname, const char *rpath)
 {
@@ -499,6 +501,30 @@ size_t calculate_hamming(unsigned char* parity_buf, off_t pos, char current_byte
     return 4; 
 }
 
+int calc_md5(char *path, char *buffer)
+{
+    buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
+
+    FILE *in_file = fopen(path, "rb");
+    MD5_CTX md_context;
+    int bytes;
+    unsigned char data[1024];
+    if (in_file == NULL)
+    {
+        printf("%s can't be opened.\n", path);
+        return 0;
+    }
+
+    MD5_Init(&md_context);
+     while ((bytes = fread (data, 1, 1024, in_file)) != 0)
+        MD5_Update (&md_context, data, bytes);
+    MD5_Final (buffer,&md_context);
+    for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", buffer[i]);
+    printf (" %s\n", path);
+    fclose (in_file);
+    return 0;
+}
+
 /*
 * 0000 ABCD
 * A - when set, write redundant bytes to last block 
@@ -512,7 +538,7 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
     unsigned char* parity_buf = (unsigned char*) calloc(*size, 1);
     size_t parity_size = 0;
     if (should_use_hamming(config))
-    {
+    { 
         for (int i=0;i<*size;i++)
         {
             char current_byte = buf[i];
@@ -557,7 +583,7 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
     if (should_attach_redundant(config))
     {
         ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber + end_block), parity_buf, parity_size, 0);
-           
+
     }
 
     return end_block - start_block;
@@ -592,6 +618,10 @@ int mirror_replica_write(const char *path, const char *buf, size_t *size,
         return -1;
     }
     log_debug("buf: %s parity_buf: %s", buf, parity_buf);
+
+    char *hash_buffer;
+    calc_md5(xlate(path, config.paths[0]), hash_buffer);
+
     return 0;
 }
 
