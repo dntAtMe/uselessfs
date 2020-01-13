@@ -57,7 +57,9 @@ RAID-1 dziala na przynajmniej dwoch dyskach. Dane sa zapisywane do wszystkich dy
         \includegraphics[scale=0.8]{raid-1.png}
         \caption{RAID-1 z dwoma dyskami}
         \label{fig:raid1}
+
 \end{figure}
+
 \subsubsection{Poziom 2}
 Podobnie do RAID-0, dane sa dzielone miedzy dyskami. W przypadku poziomu drugiego, dane sa dzielone na pojedyncze bity, a kazdy bit jest zapisywany na kolejnym dysku. RAID-2 wykorzystuje kod Hamminga do korekcji wystepujacych bledow, wszystkie bity kodu znajduja sie w odpowiednich dyskach i  pozwalaja na odzyskanie danych z jednego uszkodzonego dysku. 
 \begin{figure}[h!tb]
@@ -66,6 +68,7 @@ Podobnie do RAID-0, dane sa dzielone miedzy dyskami. W przypadku poziomu drugieg
         \caption{RAID-2 na siedmiu dyskach}
         \label{fig:raid2}
 \end{figure}
+\newpage
 \subsubsection{Poziom 4}
 Dane sa dzielone na bloki ograniczonej wielkosci i tak jak w przypadku poziomu 0, kazdy blok jest zapisywany na kolejnym dysku. Do przechowywania danych sluzy $n-1$ dyskow. Dla kazdego rzedu zapisanych danych obliczany jest blok parzystosci na osobnym dysku. Po uszkodzeniu jednego z dyskow pojedynczy blok moze zostac odzyskany.
 \begin{figure}[h!]
@@ -73,6 +76,7 @@ Dane sa dzielone na bloki ograniczonej wielkosci i tak jak w przypadku poziomu 0
         \includegraphics[scale=0.8]{raid-4.png}
         \caption{RAID-4 na trzech dyskach}
         \label{fig:raid4}
+
 \end{figure}
 \subsubsection{Poziom 5}
 Dane sa dzielone i bity parzystosci sa obliczane podobnie do poprzedniego poziomu, jednak bloki parzystosci obliczane z $n-1$ blokow danych nie sa zapisywane na dedykowanym dysku, tylko rozkladane rownomiernie na wszystkich dyskach macierzy. Stad dostepna pojemnosc to rowniez $n-1$ i mozliwe jest odzyskanie jednego uszkodzonego dysku.
@@ -82,8 +86,6 @@ Dane sa dzielone i bity parzystosci sa obliczane podobnie do poprzedniego poziom
         \caption{RAID-5 na trzech dyskach}
         \label{fig:raid5}
 \end{figure}
-\subsubsection{Poziom 6}
-t
 \newpage
 \subsection{Standardowe repliki systemu}
 Repliki zostaly zaprojektowane na podstawie poziomow RAID. Roznia sie miedzy soba sposobem wprowadzenia redundancji danych oraz mozliwym zastosowaniem. System funkcjonuje z jedna replika, kosztem nizszej redundancji. Ponizej opisano proponowane rodzaje replik oraz rozwazono ich mocne i slabe strony. Wszystkie rodzaje mozna podzielic na dwie kategorie:
