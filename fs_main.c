@@ -7,14 +7,15 @@
 #include <sys/types.h>
 #include <time.h>
 #include <errno.h>
-#include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <math.h>
 #include <errno.h>
 #include "log.h"
+#include <string.h>
 #include "hash.c"
 #include "md5.c"
+#include <fcntl.h>
 #include <openssl/md5.h>
 
 enum replica_status_t {CLEAN, DIRTY, INACTIVE};
@@ -69,11 +70,11 @@ char getBit(char byte, int bit)
 
 hash_t *h;
 
-char src1[]="/home/kpieniaz/private/uselessfs/test2";
-char src2[]="/home/kpieniaz/private/uselessfs/test";
+char src1[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r1";
+char src2[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r2";
 int replicas_cnt;
 
-char* sources[] = {"/home/kpieniaz/private/uselessfs/test", "/home/kpieniaz/private/uselessfs/test2"};
+char* sources[] = {"/home/dntAtMe/code/fuse/uselessfs/workspace/r1", "/home/dntAtMe/code/fuse/uselessfs/workspace/r2"};
 
 char *xlate(const char *fname, const char *rpath)
 {
@@ -94,6 +95,34 @@ char *xlate(const char *fname, const char *rpath)
 	log_debug("xlate %s", rname);
 	return rname;
 }
+
+int calc_md5(char *path, unsigned char *buffer, short skip_hash)
+{
+    FILE *in_file = fopen(path, "rb");
+    MD5_CTX md_context;
+    int bytes;
+    unsigned char data[1024];
+    if (in_file == NULL)
+    {
+        printf("%s can't be opened.\n", path);
+        return 0;
+    }
+
+    MD5_Init(&md_context);
+    if (skip_hash)
+    {
+        fread(data, 1, MD5_DIGEST_LENGTH, in_file);
+    }
+     while ((bytes = fread (data, 1, 1024, in_file)) != 0)
+        MD5_Update (&md_context, data, bytes);
+    MD5_Final (buffer,&md_context);
+    for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", buffer[i]);
+    printf (" %s\n", path);
+    fclose (in_file);
+    return 0;
+}
+
+
 
 static int do_getattr( const char *path, struct stat *st ) {
 	log_debug("[getattr] Running");
@@ -132,8 +161,8 @@ static int do_getattr( const char *path, struct stat *st ) {
     struct stat st2;
 
     res = lstat(fpaths[0], st);
-    res = lstat(fpaths[1], &st2);
-    st->st_size+=st2.st_size;
+    st->st_size-=MD5_DIGEST_LENGTH;
+    st->st_size/=2;
 	if (res == -1) {
 		printf("[getattr] -1, Ending");
 		return -errno;
@@ -244,7 +273,7 @@ static int do_open(const char *path, struct fuse_file_info *fi)
 /* 
 * TODO: different sizes
 */
-int decode_hamming(char *buf, size_t size, char *parity_buf, int *damaged_buf, replica_config_t config)
+int decode_hamming(char *buf, size_t size, unsigned char *parity_buf, int *damaged_buf, replica_config_t config)
 {
     int c = 0;
 
@@ -252,6 +281,7 @@ int decode_hamming(char *buf, size_t size, char *parity_buf, int *damaged_buf, r
     //P1 = D0 + D2 + D3 + D5 + D6
     //P2 = D1 + D2 + D3 + D7
     //P3 = D4 + D5 + D6 + D7
+    char *calculated_parity = calloc(size, 1);
     for (int i = 0; i < size; i++)
     {
         if (buf[i] == 0)
@@ -259,19 +289,19 @@ int decode_hamming(char *buf, size_t size, char *parity_buf, int *damaged_buf, r
             break;
         }
         char cur_byte = buf[i];
-        char cur_shift = (i % 2 ? 4 : 0);
-        char cur_parity = parity_buf[i/2] >> cur_shift;
+        char cur_shift = (i % 2 ? 0 : 4);
+        unsigned char cur_parity = parity_buf[i/2] >> cur_shift;
         int c = 0;
 
-        calculate_hamming(parity_buf, i, cur_byte);
-        printf("par: %d cur_par %d\n", (parity_buf[i/2]), parity_buf[i/2] >> cur_shift);
-        c |= (1 * getBit(cur_parity, 0)) ^ (parity_buf[i/2] & 0b0001);
-        c |= (2 * getBit(cur_parity, 1)) ^ (parity_buf[i/2] & 0b0010);
-        c |= (4 * getBit(cur_parity, 2)) ^ (parity_buf[i/2] & 0b0100);
-        c |= (8 * getBit(cur_parity, 3)) ^ (parity_buf[i/2] & 0b1000);
+        calculate_hamming(calculated_parity, i, cur_byte);
+        printf("par: %d cur_par %d\n", (calculated_parity[i/2] & 0x0f), cur_parity & 0x0f);
+        c |= (1 * getBit(cur_parity, 0)) ^ (calculated_parity[i/2] & 0b0001);
+        c |= (2 * getBit(cur_parity, 1)) ^ (calculated_parity[i/2] & 0b0010);
+        c |= (4 * getBit(cur_parity, 2)) ^ (calculated_parity[i/2] & 0b0100);
+        c |= (8 * getBit(cur_parity, 3)) ^ (calculated_parity[i/2] & 0b1000);
         printf("c %d size %d %d \n", c, size, buf[i]);
     
-        if (should_correct_errors(config) && c)
+        if ( c)
         { 
             int powered = 1;
             for (int pow = 0; pow <=  4; pow++)
@@ -359,19 +389,70 @@ int block_replica_read(const char *path, char *buffer, size_t *size, off_t offse
 int mirror_replica_read(const char *path, char *buffer, size_t *size, off_t offset, struct fuse_file_info *fi, replica_config_t config, size_t number)
 {
     log_debug("[mirror_replica_read] Running");
+    unsigned char *stored_md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
+    char *total_buffer = calloc((*size) * 2, 1);
+    int buf_size = *size;
 	// Read all
-    int ret = pread(*(hash_lookup(h, fi->fh)+number), buffer, *size, offset);
-    // Check  if we read properly
+    int ret = pread(*(hash_lookup(h, fi->fh)+number), stored_md5_buffer, MD5_DIGEST_LENGTH, 0);
     if (ret == -1)
     {
-        // Error
+        return -1;
     }
-    *size -= ret;
+    ret = pread(*(hash_lookup(h, fi->fh)+number), total_buffer, (*size) * 2, offset + MD5_DIGEST_LENGTH);
+    if (ret == -1)
+    {
+        return -1;
+    }
+    char *parity_buf = calloc((*size)/2, 1);
+    char *data_buf = calloc((*size), 1);
+    int total_cnt = 0;
+
+    for( int i = 0; i < ret; i++)
+    {
+        printf("READING %c %c\n", total_buffer[total_cnt], total_buffer[total_cnt+1]);
+        data_buf[i] = total_buffer[total_cnt++];
+        parity_buf[i/2] <<= (i % 2) ? 4 : 0;
+        parity_buf[i/2] |= total_buffer[total_cnt++];
+    }
+
+    strcpy(buffer, data_buf);
+    log_debug("[mirror_replica_read] buffer: %s", buffer);
+
+
+    *size -= ret / 2;
     // Seperate data from redundant bytes
     // OR
     // read file from second tree for redundant bytes
 
     // Check if data matches redundant information (ecc, parity, checksums) 
+
+    unsigned char *calculated_md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
+    ret = calc_md5(xlate(path, config.paths[0]), calculated_md5_buffer, 1);
+    if (ret == -1)
+    {
+        return -1;
+    }
+    for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", stored_md5_buffer[i]);
+
+    if (strcmp(stored_md5_buffer, calculated_md5_buffer))
+    {
+        log_debug("[mirror_replica_read] Different checksums");
+    } else
+    {
+        log_debug("[mirror_replica_read] Equal checksums");
+    }
+
+    if (should_use_hamming(config))
+    {
+        ret = decode_hamming(buffer, buf_size, parity_buf, NULL, config);
+    }
+    if (ret == -1)
+    {
+        // Errors detected
+    } else if (ret == 0)
+    {
+        // Errors corrected
+    }
 
     // If ok, return amount file handlers used (might be up to 2?)
     return 1;
@@ -394,6 +475,11 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
     int ret = 0;
     for (int i = 0; i < replicas_cnt; i++)
     {
+        if (!configs[i].status == CLEAN)
+        {
+            log_debug("[read] Replica %d is inactive");
+            continue;
+        }
         switch (configs[i].type)
         {
             case BLOCK:
@@ -411,6 +497,10 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
             // Read failed, check errno
             case -1:
                 log_debug("[read] Error when reading -1");
+                if (errno == EBADF)
+                {
+
+                }
             break;
             // Found damaged data
             case -2:
@@ -478,6 +568,28 @@ static int do_release(const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
+int change_checksum(unsigned char *new_checksum, char *path)
+{
+    FILE *ft;
+    int ch;
+    ft = fopen(path, "r+");
+    if (ft == NULL)
+    {
+        printf("cannot open target file %s\n", path);
+        return 1;
+    }
+    int i = 0;
+    while ((ch = fgetc(ft)) != EOF && i < MD5_DIGEST_LENGTH)
+    {
+            fseek(ft, -1, SEEK_CUR);
+            fputc(new_checksum[i++],ft);
+            fseek(ft, 0, SEEK_CUR);
+
+    }
+    fclose(ft);
+    return 0;
+}
+
 /* 
  * TODO: greater Hamming code sizes
  */
@@ -499,30 +611,6 @@ size_t calculate_hamming(unsigned char* parity_buf, off_t pos, char current_byte
         parity_buf[pos/2] |= p0;
     
     return 4; 
-}
-
-int calc_md5(char *path, char *buffer)
-{
-    buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
-
-    FILE *in_file = fopen(path, "rb");
-    MD5_CTX md_context;
-    int bytes;
-    unsigned char data[1024];
-    if (in_file == NULL)
-    {
-        printf("%s can't be opened.\n", path);
-        return 0;
-    }
-
-    MD5_Init(&md_context);
-     while ((bytes = fread (data, 1, 1024, in_file)) != 0)
-        MD5_Update (&md_context, data, bytes);
-    MD5_Final (buffer,&md_context);
-    for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", buffer[i]);
-    printf (" %s\n", path);
-    fclose (in_file);
-    return 0;
 }
 
 /*
@@ -588,6 +676,13 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
 
     return end_block - start_block;
 }
+
+
+        //P0 = D0 + D1 + D3 + D4 + D6
+        //P1 = D0 + D2 + D3 + D5 + D6
+        //P2 = D1 + D2 + D3 + D7
+        //P3 = D4 + D5 + D6 + D7
+
 /*
 * Calculate redundant bytes
 * Save buffer to file(s)
@@ -595,33 +690,46 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
 int mirror_replica_write(const char *path, const char *buf, size_t *size,
 		    off_t offset, struct fuse_file_info *fi, replica_config_t config, int curnumber)
 {
-    unsigned char* parity_buf = (unsigned char*) calloc(*size, 1);
-    for (int i=0;i<*size;i++)
-    {
-        char current_byte = buf[i];
-        //P0 = D0 + D1 + D3 + D4 + D6
-        //P1 = D0 + D2 + D3 + D5 + D6
-        //P2 = D1 + D2 + D3 + D7
-        //P3 = D4 + D5 + D6 + D7
-        calculate_hamming(parity_buf, i, current_byte);  
-       
-    }
     int ret;
-    ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber), buf, *size, offset);
-    if (ret == -1)
+    int size_to_write = *size;
+
+    char *fullpath = xlate(path, config.paths[0]);
+    char *hiddenpath = malloc(strlen(path)+1);
+    strcpy(hiddenpath+1, path);
+    hiddenpath[0] = '/';
+    hiddenpath[1] = '.';
+    char *hiddenpath_parity = xlate(hiddenpath, config.paths[0]);
+
+    for (int i=0;i<size_to_write;i++)
+    {
+        unsigned char parity_buf = 0x00;
+        char current_byte = buf[i];
+        calculate_hamming(&parity_buf, 0, current_byte);
+        ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber), buf + i, 1, offset + MD5_DIGEST_LENGTH + 2 * i );
+        *size -= 1;
+        if (ret == -1)
+        {
+            return -1;
+        }
+        ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber), &parity_buf, 1, offset + MD5_DIGEST_LENGTH  + 2 * i + 1); 
+        if (ret == -1)
+        {
+            return -1;
+        }
+    
+    }
+
+    unsigned char *md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
+    ret = calc_md5(xlate(path, config.paths[0]), md5_buffer, 1);
+    if (ret)
+    {
+        return ret;
+    }
+    ret = change_checksum(md5_buffer, xlate(path, config.paths[0])); 
+    if (ret)
     {
         return -1;
     }
-    ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber), parity_buf, *size/2, offset + *size); 
-    if (ret == -1)
-    {
-        return -1;
-    }
-    log_debug("buf: %s parity_buf: %s", buf, parity_buf);
-
-    char *hash_buffer;
-    calc_md5(xlate(path, config.paths[0]), hash_buffer);
-
     return 0;
 }
 
@@ -634,12 +742,26 @@ static int do_write(const char *path, const char *buf, size_t size,
      * 3. Write to replica
      * 4. On error, mark as dirty
      */
+
+    /* Writing structure in one file
+     * 1. Constant-sized hash
+     * 2. Actual data
+     * 3. ECC, size can be predicted
+     * Parts 2. and 3. can interlace
+     */
     log_debug("[do_write] Running ");
+    uint8_t outcomes[replicas_cnt];
+
     // Stores return value of writing function
     int val;
     size_t returned_size = size;
     for(int i = 0; i < replicas_cnt; i++)
     {
+        if (configs[i].status == INACTIVE)
+        {
+            log_debug("[read] Replica %d is inactive");
+            continue;
+        }
         switch (configs[i].type)
         {
             case MIRROR:
@@ -659,48 +781,115 @@ static int do_write(const char *path, const char *buf, size_t size,
             switch(errno)
             {
                 case EBADF:
-                        
                         break;
             }
+            // Mark replica as dirty
+            outcomes[i] = 1;
+            configs[i].status = DIRTY;
         }
-        // Mark replica as dirty
-        configs[i].status = DIRTY;
     }
    
     return size - returned_size;
 }
 
-int block_replica_create(const char *path, mode_t mode, struct fuse_file_info *fi, replica_config_t config, size_t number)
+int block_replica_mknod(const char *path, mode_t mode, dev_t dev, replica_config_t config)
 {
     
 }
 
-int mirror_replica_create(const char *path, mode_t mode, struct fuse_file_info *fi, replica_config_t config, size_t number)
+// TODO: if one of file, .file exists, whole thing fails
+int mirror_replica_mknod(const char *path, mode_t mode, dev_t dev, replica_config_t config)
 {
+    int ret;
+    char *fullpath = xlate(path, config.paths[0]);
+    char *hiddenpath = malloc(strlen(path)+1);
+    strcpy(hiddenpath+1, path);
+    hiddenpath[0] = '/';
+    hiddenpath[1] = '.';
+    char *hiddenpath_parity = xlate(hiddenpath, config.paths[0]);
     
+    FILE *ft;
+    char empty[MD5_DIGEST_LENGTH];
+
+    if (should_attach_redundant(config))
+    {
+        ret = mknod(fullpath, mode, dev);
+        if (ret)
+        {
+            return ret;
+        }
+        char empty[MD5_DIGEST_LENGTH];
+        ft = fopen(fullpath, "w");
+        if (ft == NULL)
+        {
+            return -1;
+        }
+        fwrite(empty, 1, MD5_DIGEST_LENGTH, ft);
+        fclose(ft);
+
+        return 0;
+    }
+    // Else
+
+    ret = mknod(fullpath, mode, dev);
+    if (ret)
+    {
+        return ret;
+    }
+
+    ft = fopen(fullpath, "w");
+    if (ft == NULL)
+    {
+        return -1;
+    }
+    fwrite(empty, 1, MD5_DIGEST_LENGTH, ft);
+    fclose(ft);
+
+
+    ret = mknod(hiddenpath_parity, mode, dev);
+    if (ret)
+    {
+        return ret;
+    }
+    
+    ft = fopen(hiddenpath_parity, "w");
+    if (ft == NULL)
+    {
+        return -1;
+    }
+    fwrite(empty, 1, MD5_DIGEST_LENGTH, ft);
+    fclose(ft);
+
+    return 0;
 }
 
 // Create and open
-static int do_create(const char *path, mode_t mode, struct fuse_file_info *fi)
+static int do_mknod(const char *path, mode_t mode, dev_t dev)
 {
-    log_debug("[do_create] Running ");
+    log_debug("[do_mknod] Running ");
     // Stores return value of writing function
     int val;
     for(int i = 0; i < replicas_cnt; i++)
     {
+        if (configs[i].status == INACTIVE)
+        {
+            log_debug("[mknod] Replica %d is inactive");
+            continue;
+        }
         switch (configs[i].type)
         {
             case MIRROR:
-                log_debug("[do_write] Mirror replica ");
-                val = mirror_replica_create(path, mode, fi, configs[i], i);      
+                log_debug("[do_mknod] Mirror replica ");
+                val = mirror_replica_mknod(path, mode, dev, configs[i]);      
             break;
             case BLOCK:
-                log_debug("[do_write] Block replica ");
-                val = block_replica_create(path, mode, fi, configs[i], i);
+                log_debug("[do_mknod] Block replica ");
+                val = block_replica_mknod(path, mode, dev, configs[i]);
             break;
         }
-        if (val == -1)
+        if (val)
         {
+            printf ("%d", val);
             switch(errno)
             {
                 case EBADF:
@@ -709,6 +898,8 @@ static int do_create(const char *path, mode_t mode, struct fuse_file_info *fi)
             }
         }
     }
+
+    return 0;
 }
 
 
@@ -716,7 +907,7 @@ static struct fuse_operations operations = {
     .getattr = do_getattr,
     .readdir = do_readdir,
     .read = do_read,
-    .create = do_create,
+    .mknod = do_mknod,
 
     .open = do_open,
     .write = do_write,
