@@ -85,8 +85,8 @@ char getBit(char byte, int bit)
 
 hash_t *h;
 
-char src1[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r1";
-char src2[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r2";
+char src1[]="/home/kpieniaz/private/uselessfs/workspace/r1";
+char src2[]="/home/kpieniaz/private/uselessfs/workspace/r2";
 int replicas_cnt;
 
 char *xlate(const char *fname, const char *rpath)
@@ -116,7 +116,7 @@ int calc_md5(char *path, unsigned char *buffer, short skip_hash, int is_regular_
     FILE *in_file = fopen(path, "rb");
     MD5_CTX md_context;
     int bytes;
-    unsigned char data[1024];
+    unsigned char *data = calloc(1024, 1);
     if (in_file == NULL)
     {
         printf("%s can't be opened.\n", path);
@@ -178,11 +178,11 @@ int write_file(char *path, unsigned char* checksum, unsigned char *buffer, unsig
     }
     else 
     {
+        fseek(in_file, MD5_DIGEST_LENGTH, SEEK_CUR);
         if (config.type == MIRROR)
         {
             if (interlace_redundancy_method(config))
             {
-                fseek(in_file, MD5_DIGEST_LENGTH, SEEK_CUR);
                 while ((ch = fgetc(in_file)) != EOF && i <= size)
                 {
                     int cur_shift = i % 2 ? 0 : 4;
@@ -201,6 +201,56 @@ int write_file(char *path, unsigned char* checksum, unsigned char *buffer, unsig
     return 0;
 }
 
+int file_data_read(char *path, char *data_buf, size_t size, off_t offset, replica_config_t config)
+{
+    char ch;
+
+    if (config.type == BLOCK)
+    {
+        int ch_cnt = 0;
+        int p_size = attach_redundancy_method ? config.paths_size : config.paths_size - 1;
+
+        FILE *files[p_size];
+
+        for (int i = 0; i < p_size; i++)
+        {
+            char *fpath = xlate(path, config.paths[i]);
+            files[i] = fopen(fpath, "r+");
+            
+            if (files[i] == NULL)
+            {
+                printf("%s can't be opened.\n", path);
+                return 0; 
+            }
+            
+            if (should_use_checksum)
+            {
+                // Skip checksum
+                fseek(files[i], MD5_DIGEST_LENGTH, SEEK_CUR);
+            }
+        }
+
+        // Read data, depending on redundancy method
+        if (interlace_redundancy_method)
+        {
+            while ((ch = fgetc(files[ch_cnt % 3])) != EOF && ch_cnt < size)
+            {
+                int current = ch_cnt % 3;
+                data_buf[ch_cnt] = ch;
+                ch_cnt++;
+            }
+        }
+
+        for (int i = 0; i < p_size; i++)
+        {
+            close(files[i]);
+        }
+    }
+
+    return 0;
+}
+
+
 int block_replica_getattr(const char *path, replica_config_t config, int number, struct stat *st)
 {
     int res = 0;
@@ -212,11 +262,13 @@ int block_replica_getattr(const char *path, replica_config_t config, int number,
     size_t missing_blocks = 0;
     int is_regular_file;
 
+    st->st_size = 0;
+
     for (int i = 0; i < config.paths_size; i++)
     {
         char *fpath = xlate(path, config.paths[i]);
 
-        res = lstat(fpath, st);
+        res = lstat(fpath, stats + i);
         if (res == -1) {
             printf("[getattr] ERROR CODE: -1, ERRNO: %d\n", errno);
                 errors_at[i] = errno;
@@ -251,7 +303,10 @@ int block_replica_getattr(const char *path, replica_config_t config, int number,
     if (errors_cnt == 1 && errors_cnt == 1)
     {
         // Only one block failed and it's fixable with parity
-
+        if (attach_redundancy_method(config) == 0 && should_attach_to_new(config))
+        {
+            // Last block is a parity block
+        }
     } else
     if (errors_cnt > 1)
     {
@@ -262,11 +317,25 @@ int block_replica_getattr(const char *path, replica_config_t config, int number,
     // Try to fill out stat for fixed files
 
     // If failed again, replica inactive
-    //*st = stats[0];
+    
+    st->st_dev = stats[0].st_dev;
+    st->st_gid = stats[0].st_dev;
+    st->st_ino = stats[0].st_dev;
+    st->st_mode = stats[0].st_mode;
+    st->st_nlink = stats[0].st_nlink;
+    st->st_rdev = stats[0].st_rdev;
+    st->st_uid = stats[0].st_uid;
+    st->st_blocks = stats[0].st_blocks;
+    st->st_blksize = stats[0].st_blksize;
+    for (int i = 0; i < config.paths_size; i++)
+    {
+        st->st_size += stats[i].st_size;
+    }
+
     // Checksum in the beginning of a file
     if (should_use_checksum(config))
     {
-
+        st->st_size -= config.paths_size * MD5_DIGEST_LENGTH;
     }
     // Attach Hamming
     if (attach_redundancy_method(config))
@@ -326,6 +395,8 @@ int mirror_replica_getattr(const char *path, replica_config_t config, int number
     return 0;
 }
 
+// 1 - missing blocks in replica
+// -2 - missing file in a replica
 static int do_getattr( const char *path, struct stat *st ) {
 	log_debug("[getattr] Running");
 	log_debug("[getattr] Requested  path:%s", path);
@@ -348,9 +419,13 @@ static int do_getattr( const char *path, struct stat *st ) {
 	}
 */	
 	int res;
+    size_t i;
+    int8_t errors_at[replicas_cnt];
+    size_t missing_file = 0;
 	
-    for (size_t i = 0; i < replicas_cnt; i++)
+    for (i = 0; i < replicas_cnt; i++)
     {   
+        // Stat file
         int ret = 0;
         switch (configs[i].type)
         {
@@ -363,11 +438,71 @@ static int do_getattr( const char *path, struct stat *st ) {
             ret = mirror_replica_getattr(path, configs[i], i, st);
             break;
         }
-        if (ret)
+
+        errors_at[i] = ret;
+        if (!ret)
         {
-            return ret;
+            // Success
+            break;
+        }
+        if (ret == -2)
+        {
+            missing_file++;
         }
     }
+
+    if (missing_file == replicas_cnt)
+    {
+        // Failed everywhere
+	    log_debug("[getattr] ! MISSING FILE IN ALL REPLICAS !");
+        return -2;
+    }
+
+    if (i == replicas_cnt)
+    {
+        // Failed everywhere
+	    log_debug("[getattr] ! ALL REPLICAS FAILED !");
+        return -2;
+    }
+
+    if (i == 0)
+    {
+        // No errors
+        log_debug("[getattr] ! NO ERRORS FOUND !");
+        return 0;
+    }
+
+    for (int cnt = 0; cnt < replicas_cnt; cnt++)
+    {
+        log_debug("[getattr] ! FIXING %d REPLICA: ERROR %d !", cnt, errors_at[cnt]);
+
+        // Some errors
+        if (errors_at[cnt] == 1)
+        {
+            // Missing blocks
+            // Can be treated like missing file 
+            // TODO: Replace only missing blocks
+
+            // read file
+            char *data_buf = calloc(st->st_size, 1);
+            file_data_read(path, data_buf, st->st_size, 0, configs[i]);
+
+            // store in a buf
+        } else
+        if (errors_at[cnt] == -2)
+        {
+            // No such file
+        } else
+        if (errors_at[cnt] == 0)
+        {
+            // All done
+            break;
+        } else
+        {
+            // Other errors
+        }
+    }
+
     
 	log_debug("[getattr] End");
 	return 0;
@@ -530,51 +665,94 @@ int block_replica_read(const char *path, char *buffer, size_t *size, off_t offse
 {
     // Read depending on our options
     int block_size = 4;
-    int start_block = offset / block_size;
-    int end_block = interlace_redundancy_method(config) ? config.paths_size - 1 : config.paths_size;
-    int diff = offset % block_size;
+    int last_block = attach_redundancy_method(config) ? config.paths_size - 1 : config.paths_size;
+    int start_block = offset % last_block;
+    int current_block = start_block;
     int total_read_bytes = 0;
     int total_size = *size;
+    int bytes_read = 0;
     int ret = 0;
 
-    for (int current_block = start_block; current_block < end_block; current_block++)
-    {   
-        printf("TEST\n");
-        int i = current_block - start_block;
-        if (current_block == start_block)
+    char *parity_buf = calloc(total_size, 1);
+
+    unsigned char *stored_md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
+    unsigned char *calculated_md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
+
+    for (int i = 0; i < total_size; i++)
+    {
+        if (interlace_redundancy_method(config))
         {
-            ret = pread(*(hash_lookup(h, fi->fh)+number + current_block), buffer + total_read_bytes, (block_size - diff), diff);
-            *size -= (block_size - diff);
-        } else 
-        {
-            int size_to_read = (*size > block_size ? block_size : *size);
-            ret = pread(*(hash_lookup(h, fi->fh)+number + current_block), buffer + total_read_bytes, size_to_read, diff + (block_size * (i-1)));    
-            *size -= size_to_read;
+            printf("READING BLOCK %d ON %d SIZE %d\n", current_block, ((offset + i) / last_block) * 2, total_size);
+            ret = pread(*(hash_lookup(h, fi->fh)+number+current_block), buffer + i, 1, ((offset + i) / last_block) * 2 + MD5_DIGEST_LENGTH);
+            if (ret == -1)
+            {
+                // Error
+                return -errno;
+            }
+            if (ret == 0)
+            {
+                break;
+            }
+            *size -= 1;
+            bytes_read += 1;
+
+            ret = pread(*(hash_lookup(h, fi->fh)+number+current_block), parity_buf + i, 1, ((offset + i) / last_block) * 2 + 1 + MD5_DIGEST_LENGTH);
+            if (ret == -1)
+            {
+                // Error
+                return -errno;
+            }
+
         }
-        if (ret == -1)
+
+        if(should_use_checksum(config))
         {
-            // ERROR
-        } else
-        {
-            total_read_bytes += ret;
+            ret = pread(*(hash_lookup(h, fi->fh)+number+current_block), stored_md5_buffer, MD5_DIGEST_LENGTH, 0);
+            if (ret == -1)
+            {
+                // Error
+                return -errno;
+            }
+            ret = calc_md5(xlate(path, config.paths[current_block]), calculated_md5_buffer, 1, 1);
+            if (ret == -1)
+            {
+                return -1;
+            }
+
+            for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", stored_md5_buffer[i]);
+
+            if (strcmp(stored_md5_buffer, calculated_md5_buffer))
+            {
+                log_debug("[mirror_replica_read] Different checksums");
+            } else
+            {
+                log_debug("[mirror_replica_read] Equal checksums");
+            }
+
         }
+        current_block++;
+        current_block %= last_block;
     }
 
+    
     // Redundancy
     if (interlace_redundancy_method(config))
     {
-        char *parity_buf = calloc(total_size, 1);
-        //char *corrected_buf = calloc(total_size, 1);
-        int *damaged_blocks = calloc(config.paths_size, sizeof(int));
-        ret = pread(*(hash_lookup(h, fi->fh)+number + end_block), parity_buf, total_size, 0);
-        if (ret == -1)
-        {
-            // Error
-        }
         if (should_use_hamming(config))
         {
-            ret = decode_hamming(buffer, total_size, parity_buf, damaged_blocks, config);
+            ret = decode_hamming(buffer, total_size, parity_buf, NULL, config);
+            if (should_correct_errors || 1)
+            {
+                char *filepath = xlate(path, config.paths[0]);
+                write_file(filepath, NULL, buffer, parity_buf, bytes_read, config);
 
+                ret = calc_md5(xlate(path, config.paths[0]), calculated_md5_buffer, 1, 1);
+                if (ret == -1)
+                {
+                    return -1;
+                }
+                write_file(filepath, calculated_md5_buffer, buffer, parity_buf, bytes_read, config);
+            }
         }
         if (ret == -1)
         {
@@ -585,7 +763,7 @@ int block_replica_read(const char *path, char *buffer, size_t *size, off_t offse
         }
     }
 
-    return end_block - start_block;
+    return 0;
 }
 
 int mirror_replica_read(const char *path, char *buffer, size_t *size, off_t offset, struct fuse_file_info *fi, replica_config_t config, size_t number)
@@ -673,7 +851,7 @@ int mirror_replica_read(const char *path, char *buffer, size_t *size, off_t offs
     }
 
     // If ok, return amount file handlers used (might be up to 2?)
-    return 1;
+    return 0;
 }
 
 // If read completely fails, mark replica as INACTIVE
@@ -691,8 +869,10 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
     log_debug("[read] size: %d offset: %d fh1: %d fh2: %d", size, offset, *(hash_lookup(h, fi->fh)), *(hash_lookup(h, fi->fh)+1));
     size_t size_to_read = size;
     int ret = 0;
+    int next_free_fh = 0;
+
     for (int i = 0; i < replicas_cnt; i++)
-    {
+    { 
         if (!configs[i].status == CLEAN)
         {
             log_debug("[read] Replica %d is inactive");
@@ -702,11 +882,11 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
         {
             case BLOCK:
                 log_debug("[read] Reading block replica");
-                ret = block_replica_read(path, buffer, &size_to_read, offset, fi, configs[i], i);
+                ret = block_replica_read(path, buffer, &size_to_read, offset, fi, configs[i], next_free_fh);
             break;
             case MIRROR:
                 log_debug("[read] Reading mirror replica");
-                ret = mirror_replica_read(path, buffer, &size_to_read, offset, fi, configs[i], i);
+                ret = mirror_replica_read(path, buffer, &size_to_read, offset, fi, configs[i], next_free_fh);
             break;
         }
         
@@ -728,11 +908,16 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
                 log_debug("[read] Error when reading -3");
             break;
             // All ok, returns amount of bytes read
-            default:
+            case 0:
                 log_debug("[read] Reading done");
                 return size - size_to_read;
+            default:
+                log_debug("[read] Error when reading %d", ret);
+
             break;
         }
+
+        next_free_fh += configs[i].paths_size;
     }
 
     // Return whole size but parts we didnt read
@@ -854,13 +1039,51 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
     
     // Write depending on our options
     int block_size = 4;
-    int start_block = offset / block_size;
-    int end_block = interlace_redundancy_method(config) ? config.paths_size - 1 : config.paths_size;
-    int diff = offset % block_size;
-    
+    int last_block = attach_redundancy_method(config) ? config.paths_size - 1 : config.paths_size;
+    int start_block = offset % last_block;
+    int current_block = start_block;
+    int size_to_write = *size;
+
     int total_written_bytes = 0;
     int ret = 0;
 
+    for (int i = 0; i < size_to_write; i++)
+    {
+        if (interlace_redundancy_method(config))
+        {
+            printf("WRITING BLOCK %d WITH %c ON %d\n", current_block, buf[i], ((offset + i) / last_block) * 2);
+            ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber + current_block), buf + i, 1, ((offset + i) / last_block) * 2 + MD5_DIGEST_LENGTH);
+            if (ret == -1)
+            {
+                // Error
+                return -errno;
+            }
+            *size -= 1;
+
+            ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber + current_block), parity_buf + i, 1, ((offset + i) / last_block) * 2 + 1 + MD5_DIGEST_LENGTH);
+            if (ret == -1)
+            {
+                // Error
+                return -errno;
+            }
+        }
+
+        unsigned char *md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
+        ret = calc_md5(xlate(path, config.paths[current_block]), md5_buffer, 1, 1);
+        if (ret)
+        {
+            return ret;
+        }
+        ret = change_checksum(md5_buffer, xlate(path, config.paths[current_block])); 
+        if (ret)
+        {
+            return -1;
+        }
+        
+        current_block++;
+        current_block %= last_block;
+    }
+/*
     for (int current_block = start_block; current_block < end_block; current_block++)
     {   
         printf("TEST\n");
@@ -891,8 +1114,8 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
         ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber + end_block), parity_buf, parity_size, 0);
 
     }
-
-    return end_block - start_block;
+*/
+    return 0;
 }
 
 
@@ -973,6 +1196,8 @@ static int do_write(const char *path, const char *buf, size_t size,
     // Stores return value of writing function
     int val;
     size_t returned_size = size;
+    int next_free_fh = 0;
+
     for(int i = 0; i < replicas_cnt; i++)
     {
         if (configs[i].status == INACTIVE)
@@ -985,12 +1210,12 @@ static int do_write(const char *path, const char *buf, size_t size,
             case MIRROR:
                 log_debug("[do_write] Mirror replica ");
                 // Write to replica if usable 
-                val = mirror_replica_write(path, buf, &returned_size, offset, fi, configs[i], i);      
+                val = mirror_replica_write(path, buf, &returned_size, offset, fi, configs[i], next_free_fh);      
             break;
             case BLOCK:
                 log_debug("[do_write] Block replica ");
                 // Write to replica if usable 
-                val = block_replica_write(path, buf, &returned_size, offset, fi, configs[i], i);
+                val = block_replica_write(path, buf, &returned_size, offset, fi, configs[i], next_free_fh);
             break;
         }
         // If failed, take action depending on value of errno (see man write(2))
@@ -1005,6 +1230,8 @@ static int do_write(const char *path, const char *buf, size_t size,
             outcomes[i] = 1;
             configs[i].status = DIRTY;
         }
+
+        next_free_fh += configs[i].paths_size;
     }
    
     return size - returned_size;
@@ -1014,7 +1241,7 @@ int block_replica_mknod(const char *path, mode_t mode, dev_t dev, replica_config
 {
     int ret;
     FILE *ft;
-    char *empty = calloc(MD5_DIGEST_LENGTH, 1);
+    char *buf = calloc(MD5_DIGEST_LENGTH, 1);
 
     for (int i = 0; i < config.paths_size; i++)
     {
@@ -1032,7 +1259,8 @@ int block_replica_mknod(const char *path, mode_t mode, dev_t dev, replica_config
             {
                 return -1;
             }
-            fwrite(empty, 1, MD5_DIGEST_LENGTH, ft);
+            calc_md5(fullpath, buf, 1, 1);
+            fwrite(buf, 1, MD5_DIGEST_LENGTH, ft);
             fclose(ft);
         }
     }
