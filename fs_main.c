@@ -33,22 +33,37 @@ typedef struct replica_config_t
 
 replica_config_t *configs = NULL;
 
-#define FLAG_USE_HAMMING 1
+#define FLAG_CORRECT_ERRORS 1
 #define FLAG_USE_HAMMING_EXTRA_BIT 2
-#define FLAG_USE_PARITY 4
-#define FLAG_USE_CHECKSUM 8
-#define FLAG_CORRECT_ERRORS 16 // not really needed as there are bits set for specific ECCs
-#define FLAG_ATTACH_REDUNDANT 32
+#define FLAG_USE_CHECKSUM 4
+#define FLAG_ATTACH_REDUNDANCY 8 // 0 parity, 1 hamming
+#define FLAG_ATTACH_TO_NEW 16
+#define FLAG_INTERLACE_REDUNDANCY 32 // 0 parity, 1 hamming
 #define FLAG_RESTRICT_BLOCKS 64
+
+unsigned short should_correct_errors(replica_config_t config)
+{
+    return config.flags & FLAG_CORRECT_ERRORS;
+}
+
+unsigned short should_attach_to_new(replica_config_t config)
+{
+    return config.flags & FLAG_ATTACH_TO_NEW;
+}
+
+unsigned short should_use_checksum(replica_config_t config)
+{
+    return config.flags & FLAG_USE_CHECKSUM;
+}
 
 unsigned short should_use_hamming(replica_config_t config)
 {
-    return config.flags & (FLAG_USE_HAMMING | FLAG_USE_HAMMING_EXTRA_BIT);
+    return config.flags & FLAG_ATTACH_REDUNDANCY || config.flags & FLAG_INTERLACE_REDUNDANCY;
 }
 
-unsigned short should_attach_redundant(replica_config_t config)
+unsigned short interlace_redundancy_method(replica_config_t config)
 {
-    return config.flags & FLAG_ATTACH_REDUNDANT;
+    return config.flags & FLAG_INTERLACE_REDUNDANCY;
 }
 
 unsigned short should_restrict_blocksize(replica_config_t config)
@@ -56,9 +71,9 @@ unsigned short should_restrict_blocksize(replica_config_t config)
     return config.flags & FLAG_RESTRICT_BLOCKS;
 }
 
-unsigned short should_correct_errors(replica_config_t config)
+unsigned short attach_redundancy_method(replica_config_t config)
 {
-    return config.flags & FLAG_CORRECT_ERRORS;
+    return config.flags & FLAG_ATTACH_REDUNDANCY;
 } 
 
 size_t calculate_hamming(unsigned char* parity_buf, off_t pos, char current_byte);
@@ -70,11 +85,9 @@ char getBit(char byte, int bit)
 
 hash_t *h;
 
-char src1[]="/home/kpieniaz/private/uselessfs/workspace/r1";
-char src2[]="/home/kpieniaz/private/uselessfs/workspace/r2";
+char src1[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r1";
+char src2[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r2";
 int replicas_cnt;
-
-char* sources[] = {"/home/kpieniaz/private/uselessfs/workspace/r1", "/home/kpieniaz/private/uselessfs/workspace/r2"};
 
 char *xlate(const char *fname, const char *rpath)
 {
@@ -96,8 +109,10 @@ char *xlate(const char *fname, const char *rpath)
 	return rname;
 }
 
-int calc_md5(char *path, unsigned char *buffer, short skip_hash)
+int calc_md5(char *path, unsigned char *buffer, short skip_hash, int is_regular_file)
 {
+    if (!is_regular_file)
+        return 1;
     FILE *in_file = fopen(path, "rb");
     MD5_CTX md_context;
     int bytes;
@@ -122,8 +137,10 @@ int calc_md5(char *path, unsigned char *buffer, short skip_hash)
     return 0;
 }
 
-int get_md5(char *path, unsigned char* md5)
+int get_md5(char *path, unsigned char* md5, int is_regular_file)
 {
+    if (!is_regular_file)
+        return 1;
     FILE *in_file = fopen(path, "rb");
     int bytes;
     if (in_file == NULL)
@@ -163,7 +180,7 @@ int write_file(char *path, unsigned char* checksum, unsigned char *buffer, unsig
     {
         if (config.type == MIRROR)
         {
-            if (should_attach_redundant(config))
+            if (interlace_redundancy_method(config))
             {
                 fseek(in_file, MD5_DIGEST_LENGTH, SEEK_CUR);
                 while ((ch = fgetc(in_file)) != EOF && i <= size)
@@ -186,14 +203,99 @@ int write_file(char *path, unsigned char* checksum, unsigned char *buffer, unsig
 
 int block_replica_getattr(const char *path, replica_config_t config, int number, struct stat *st)
 {
+    int res = 0;
+    struct stat *tmp_stat;
+    // ENOENT - missing file
+    int8_t errors_at[config.paths_size];
+    struct stat stats[config.paths_size];
+    size_t errors_cnt = 0;
+    size_t missing_blocks = 0;
+    int is_regular_file;
 
+    for (int i = 0; i < config.paths_size; i++)
+    {
+        char *fpath = xlate(path, config.paths[i]);
+
+        res = lstat(fpath, st);
+        if (res == -1) {
+            printf("[getattr] ERROR CODE: -1, ERRNO: %d\n", errno);
+                errors_at[i] = errno;
+                errors_cnt++;
+            if (errno == ENOENT)
+            {
+                missing_blocks++;
+            }
+            continue;
+        }
+        is_regular_file = S_ISREG(st->st_mode);
+        printf("ISREG: %d\n", is_regular_file);
+        unsigned char *gmd5 = calloc(MD5_DIGEST_LENGTH, 1);
+        unsigned char *cmd5 = calloc(MD5_DIGEST_LENGTH, 1);
+        get_md5(fpath, gmd5, is_regular_file);
+        calc_md5(fpath, cmd5, 1, is_regular_file);
+        if (strcmp(gmd5, cmd5))
+        {
+            printf("[getattr] !DIFFERENT CHECKSUMS!\n", errno);
+            // Various checksums, file content unexpectedly changed
+            errors_at[i] = -1;
+            errors_cnt++;
+        }  
+    }
+        
+    // If errors found, try to fix
+    if (missing_blocks == config.paths_size)
+    {
+        // File is not here at all
+        return -ENOENT;
+    } else
+    if (errors_cnt == 1 && errors_cnt == 1)
+    {
+        // Only one block failed and it's fixable with parity
+
+    } else
+    if (errors_cnt > 1)
+    {
+        // Not fixable on its own
+        return 1;
+    }
+
+    // Try to fill out stat for fixed files
+
+    // If failed again, replica inactive
+    //*st = stats[0];
+    // Checksum in the beginning of a file
+    if (should_use_checksum(config))
+    {
+
+    }
+    // Attach Hamming
+    if (attach_redundancy_method(config))
+    {
+
+    } else
+    // Attach parity
+    {
+
+    }
+    // Interlace Hamming
+    if (interlace_redundancy_method(config))
+    {
+        
+    } else 
+    // Interlace parity
+    {
+
+    }
+
+    return 0;
 }
 
 int mirror_replica_getattr(const char *path, replica_config_t config, int number, struct stat *st)
 {
     int res = 0;
+    int is_regular_file;
 
-    if (should_attach_redundant) 
+    if (interlace_redundancy_method(config)) 
     {
         char *fpath = xlate(path, config.paths[0]);
         res = lstat(fpath, st);
@@ -201,12 +303,15 @@ int mirror_replica_getattr(const char *path, replica_config_t config, int number
             printf("[getattr] -1, Ending\n");
             return -errno;
 	    }
+        is_regular_file = S_ISREG(st->st_mode);
+        printf("ISREG: %d\n", is_regular_file);
+
         unsigned char gmd5[MD5_DIGEST_LENGTH];
         unsigned char cmd5[MD5_DIGEST_LENGTH];
         printf("get_md5\n");
-        get_md5(fpath, gmd5);
+        get_md5(fpath, gmd5, is_regular_file);
         printf("calc_md5\n");
-        calc_md5(fpath, cmd5, 1);               
+        calc_md5(fpath, cmd5, 1, is_regular_file);               
 
   
         st->st_size -= MD5_DIGEST_LENGTH; 
@@ -426,7 +531,7 @@ int block_replica_read(const char *path, char *buffer, size_t *size, off_t offse
     // Read depending on our options
     int block_size = 4;
     int start_block = offset / block_size;
-    int end_block = should_attach_redundant(config) ? config.paths_size - 1 : config.paths_size;
+    int end_block = interlace_redundancy_method(config) ? config.paths_size - 1 : config.paths_size;
     int diff = offset % block_size;
     int total_read_bytes = 0;
     int total_size = *size;
@@ -456,7 +561,7 @@ int block_replica_read(const char *path, char *buffer, size_t *size, off_t offse
     }
 
     // Redundancy
-    if (should_attach_redundant(config))
+    if (interlace_redundancy_method(config))
     {
         char *parity_buf = calloc(total_size, 1);
         //char *corrected_buf = calloc(total_size, 1);
@@ -487,46 +592,49 @@ int mirror_replica_read(const char *path, char *buffer, size_t *size, off_t offs
 {
     log_debug("[mirror_replica_read] Running");
     unsigned char *stored_md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
-    char *total_buffer = calloc((*size) * 2, 1);
+    unsigned char *calculated_md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
+    char *total_buffer;
+    char *parity_buf;
+    char *data_buf;
     int buf_size = *size;
     int bytes_read = 0;
+    int ret;
 	// Read all
-    int ret = pread(*(hash_lookup(h, fi->fh)+number), stored_md5_buffer, MD5_DIGEST_LENGTH, 0);
-    if (ret == -1)
+    if (interlace_redundancy_method(config))
     {
-        return -1;
-    }
-    ret = pread(*(hash_lookup(h, fi->fh)+number), total_buffer, (*size) * 2, offset + MD5_DIGEST_LENGTH);
-    if (ret == -1)
-    {
-        return -1;
-    }
-    char *parity_buf = calloc((*size)/2, 1);
-    char *data_buf = calloc((*size), 1);
-    int total_cnt = 0;
+        total_buffer = calloc((*size) * 2, 1);
+        parity_buf = calloc((*size)/2, 1);
+        data_buf = calloc((*size), 1);
 
-    for( int i = 0; i < ret; i++)
-    {
-        printf("READING %c %c\n", total_buffer[total_cnt], total_buffer[total_cnt+1]);
-        data_buf[i] = total_buffer[total_cnt++];
-        parity_buf[i/2] <<= (i % 2) ? 4 : 0;
-        parity_buf[i/2] |= total_buffer[total_cnt++];
-    }
+        ret = pread(*(hash_lookup(h, fi->fh)+number), stored_md5_buffer, MD5_DIGEST_LENGTH, 0);
+        if (ret == -1)
+        {
+            return -1;
+        }
+        ret = pread(*(hash_lookup(h, fi->fh)+number), total_buffer, (*size) * 2, offset + MD5_DIGEST_LENGTH);
+        if (ret == -1)
+        {
+            return -1;
+        }
+        int total_cnt = 0;
 
-    strcpy(buffer, data_buf);
+        for( int i = 0; i < ret; i++)
+        {
+            printf("READING %c %c\n", total_buffer[total_cnt], total_buffer[total_cnt+1]);
+            data_buf[i] = total_buffer[total_cnt++];
+            parity_buf[i/2] <<= (i % 2) ? 4 : 0;
+            parity_buf[i/2] |= total_buffer[total_cnt++];
+        }
+
+        strcpy(buffer, data_buf);
+
+        *size = ret / 2;
+        bytes_read = ret / 2;
+    }
     log_debug("[mirror_replica_read] buffer: %s", buffer);
 
 
-    *size = ret / 2;
-    bytes_read = ret / 2;
-    // Seperate data from redundant bytes
-    // OR
-    // read file from second tree for redundant bytes
-
-    // Check if data matches redundant information (ecc, parity, checksums) 
-
-    unsigned char *calculated_md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
-    ret = calc_md5(xlate(path, config.paths[0]), calculated_md5_buffer, 1);
+    ret = calc_md5(xlate(path, config.paths[0]), calculated_md5_buffer, 1, 1);
     if (ret == -1)
     {
         return -1;
@@ -548,7 +656,7 @@ int mirror_replica_read(const char *path, char *buffer, size_t *size, off_t offs
         {
             char *filepath = xlate(path, config.paths[0]);
             write_file(filepath, NULL, buffer, parity_buf, bytes_read, config);
-            ret = calc_md5(xlate(path, config.paths[0]), calculated_md5_buffer, 1);
+            ret = calc_md5(xlate(path, config.paths[0]), calculated_md5_buffer, 1, 1);
             if (ret == -1)
             {
                 return -1;
@@ -747,7 +855,7 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
     // Write depending on our options
     int block_size = 4;
     int start_block = offset / block_size;
-    int end_block = should_attach_redundant(config) ? config.paths_size - 1 : config.paths_size;
+    int end_block = interlace_redundancy_method(config) ? config.paths_size - 1 : config.paths_size;
     int diff = offset % block_size;
     
     int total_written_bytes = 0;
@@ -778,7 +886,7 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
     }
 
     // Attach redundant information
-    if (should_attach_redundant(config))
+    if (interlace_redundancy_method(config))
     {
         ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber + end_block), parity_buf, parity_size, 0);
 
@@ -830,7 +938,7 @@ int mirror_replica_write(const char *path, const char *buf, size_t *size,
     }
 
     unsigned char *md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
-    ret = calc_md5(xlate(path, config.paths[0]), md5_buffer, 1);
+    ret = calc_md5(xlate(path, config.paths[0]), md5_buffer, 1, 1);
     if (ret)
     {
         return ret;
@@ -906,18 +1014,19 @@ int block_replica_mknod(const char *path, mode_t mode, dev_t dev, replica_config
 {
     int ret;
     FILE *ft;
-    char empty[MD5_DIGEST_LENGTH];
+    char *empty = calloc(MD5_DIGEST_LENGTH, 1);
 
-    if (should_attach_redundant(config))
+    for (int i = 0; i < config.paths_size; i++)
     {
-        for (int i = 0; i < config.paths_size; i++)
+        char *fullpath = xlate(path, config.paths[i]);
+        ret = mknod(fullpath, mode, dev);
+        if (ret)
         {
-            char *fullpath = xlate(path, config.paths[i]);
-            ret = mknod(fullpath, mode, dev);
-            if (ret)
-            {
-                return ret;
-            }
+            return ret;
+        }
+        
+        if (should_use_checksum(config))
+        {
             ft = fopen(fullpath, "w");
             if (ft == NULL)
             {
@@ -945,7 +1054,7 @@ int mirror_replica_mknod(const char *path, mode_t mode, dev_t dev, replica_confi
     FILE *ft;
     char empty[MD5_DIGEST_LENGTH];
 
-    if (should_attach_redundant(config))
+    if (interlace_redundancy_method(config))
     {
         ret = mknod(fullpath, mode, dev);
         if (ret)
