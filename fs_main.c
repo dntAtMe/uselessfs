@@ -19,6 +19,7 @@
 #include <openssl/md5.h>
 
 int do_mkdir (const char *path, mode_t mode);
+int calculate_parity_byte(char c, char *buf);
 
 enum replica_status_t {CLEAN, DIRTY, INACTIVE};
 enum replica_type_t {BLOCK, MIRROR};
@@ -93,8 +94,8 @@ char getBit(char byte, int bit)
 
 hash_t *h;
 
-char src1[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r1";
-char src2[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r2";
+char src1[]="/home/kpieniaz/private/uselessfs/workspace/r1";
+char src2[]="/home/kpieniaz/private/uselessfs/workspace/r2";
 int replicas_cnt;
 
 char *xlate(const char *fname, const char *rpath)
@@ -414,7 +415,7 @@ int block_replica_getattr(const char *path, replica_config_t config, int number,
             return -2;
         }
     } else
-    if (errors_cnt >= 1)
+    if (errors_cnt > 1 || errors_cnt >= 1 && !should_correct_errors(config))
     {
         // Not fixable on its own
         return 1;
@@ -804,7 +805,7 @@ int block_replica_read(const char *path, char *buffer, size_t *size, off_t offse
 
     for (int i = 0; i < total_size; i++)
     {
-        if (interlace_redundancy_method(config))
+        if (should_interlace(config))
         {
             printf("READING BLOCK %d ON %d SIZE %d\n", current_block, ((offset + i) / last_block) * 2, total_size);
             ret = pread(*(hash_lookup(h, fi->fh)+number+current_block), buffer + i, 1, ((offset + i) / last_block) * 2 + MD5_DIGEST_LENGTH);
@@ -863,9 +864,9 @@ int block_replica_read(const char *path, char *buffer, size_t *size, off_t offse
 
     
     // Redundancy
-    if (interlace_redundancy_method(config))
+    if (should_interlace(config)) // Interlacing
     {
-        if (should_use_hamming(config))
+        if (interlace_redundancy_method(config)) // Interlace Hamming
         {
             ret = decode_hamming(buffer, bytes_read, parity_buf, NULL, config);
             if (should_correct_errors(config))
@@ -880,7 +881,22 @@ int block_replica_read(const char *path, char *buffer, size_t *size, off_t offse
                 }
                 correct_file(filepath, calculated_md5_buffer, NULL, NULL, NULL, config);
             }
+        } else // Interlace parity
+        {
+            for (int i = 0; i < bytes_read; i++)
+            {
+                char parity_bit;
+                calculate_parity_byte(buffer[i], &parity_bit);
+                if (parity_bit & 1 != parity_buf[i] & 1) // Wrong parity
+                {
+                    printf("PARITY DOESN'T MATCH\n");
+                    return -1;
+                }
+
+            }
+
         }
+        
         if (ret == -1)
         {
             // Errors detected
@@ -1156,6 +1172,18 @@ size_t calculate_hamming(unsigned char* parity_buf, off_t pos, char current_byte
     return 4; 
 }
 
+int calculate_parity_byte(char c, char *buf)
+{
+    char xored_bit = 0x00;
+    for (int b = 0; b < 8; b++)
+    {
+        xored_bit ^= (c & 1);
+        c >>= 1;
+    }
+    buf[0] = xored_bit;
+    return 0;
+}
+
 /*
 * 0000 ABCD
 * A - when set, write redundant bytes to last block 
@@ -1168,12 +1196,24 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
     // Calculate redundancy
     unsigned char* parity_buf = (unsigned char*) calloc(*size, 1);
     size_t parity_size = 0;
-    if (should_use_hamming(config))
-    { 
-        for (int i=0;i<*size;i++)
+    
+    if (should_interlace(config)) // Use interlacing
+    {
+        if (config.flags & FLAG_INTERLACE_REDUNDANCY) // Interlace Hamming
+        { 
+            for (int i=0;i<*size;i++)
+            {
+                char current_byte = buf[i];
+                parity_size += calculate_hamming(parity_buf, i, current_byte);  
+            }
+        } else // Interlace parity
         {
-            char current_byte = buf[i];
-            parity_size += calculate_hamming(parity_buf, i, current_byte);  
+            for (int i = 0; i < *size; i++)
+            {
+                calculate_parity_byte(buf[i], parity_buf + i);
+                printf("XORED %d = %d\n", buf[i], parity_buf[i]);
+
+            }
         }
     }
     
@@ -1191,7 +1231,7 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
 
     for (int i = 0; i < size_to_write; i++)
     {
-        if (interlace_redundancy_method(config))
+        if (should_interlace(config))
         {
             printf("WRITING BLOCK %d WITH %c ON %d\n", current_block, buf[i], ((offset + i) / last_block) * 2);
             ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber + current_block), buf + i, 1, ((offset + i) / last_block) * 2 + MD5_DIGEST_LENGTH);
@@ -1201,7 +1241,7 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
                 return -errno;
             }
             *size -= 1;
-
+ 
             ret = pwrite(*(hash_lookup(h, fi->fh)+curnumber + current_block), parity_buf + i, 1, ((offset + i) / last_block) * 2 + 1 + MD5_DIGEST_LENGTH);
             if (ret == -1)
             {
@@ -1213,7 +1253,6 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
         current_block %= last_block;
     }
 
-    for (int i = 0; i < )
 
     for (int i = 0; i < config.paths_size; i++)
     {
