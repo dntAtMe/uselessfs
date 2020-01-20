@@ -18,6 +18,8 @@
 #include <fcntl.h>
 #include <openssl/md5.h>
 
+int do_mkdir (const char *path, mode_t mode);
+
 enum replica_status_t {CLEAN, DIRTY, INACTIVE};
 enum replica_type_t {BLOCK, MIRROR};
 
@@ -253,7 +255,7 @@ int write_new_file(char *path, unsigned char *checksum, char *data_buffer, size_
     return 0;
 }
 
-int correct_file(char *path, unsigned char* checksum, unsigned char *buffer, unsigned char *parity_buffer, size_t size, replica_config_t config)
+int correct_file(char *path, unsigned char* checksum,  char *buffer, unsigned char *parity_buffer, size_t size, replica_config_t config)
 {
     FILE *in_file = fopen(path, "r+");
     char ch;
@@ -368,7 +370,8 @@ int block_replica_getattr(const char *path, replica_config_t config, int number,
         char *fpath = xlate(path, config.paths[i]);
 
         res = lstat(fpath, stats + i);
-        if (res == -1) {
+        if (res == -1) 
+        {
             printf("[getattr] ERROR CODE: -1, ERRNO: %d\n", errno);
                 errors_at[i] = errno;
                 errors_cnt++;
@@ -430,6 +433,7 @@ int block_replica_getattr(const char *path, replica_config_t config, int number,
     st->st_uid = stats[0].st_uid;
     st->st_blocks = stats[0].st_blocks;
     st->st_blksize = stats[0].st_blksize;
+
     for (int i = 0; i < config.paths_size; i++)
     {
         st->st_size += stats[i].st_size;
@@ -443,7 +447,7 @@ int block_replica_getattr(const char *path, replica_config_t config, int number,
     // Attach Hamming
     if (attach_redundancy_method(config))
     {
-
+        
     } else
     // Attach parity
     {
@@ -496,6 +500,11 @@ int mirror_replica_getattr(const char *path, replica_config_t config, int number
 
 // 1 - missing blocks in replica
 // -2 - missing file in a replica
+
+// TODO: If we got blocks 1,3 ok on one replica and block 2 ok on another replica,
+// it is possible to merge them together
+
+// TODO: Take care of directories
 static int do_getattr( const char *path, struct stat *st ) {
 	log_debug("[getattr] Running");
 	log_debug("[getattr] Requested  path:%s", path);
@@ -505,18 +514,8 @@ static int do_getattr( const char *path, struct stat *st ) {
 	st->st_gid = getgid();
 	st->st_atime = time( NULL );
 	st->st_mtime = time( NULL );
+*/
 
-	if ( strcmp(path, "/") == 0 ) {
-		printf("[getattr] Directory found");
-		st->st_mode = __S_IFDIR | 0755;
-		st->st_nlink = 2;
-	} else {
-		printf("[getattr] File found\n");
-		st->st_mode = __S_IFREG | 0644;
-		st->st_nlink = 1;
-		st->st_size = 1024;	
-	}
-*/	
 	int res;
     size_t i;
     int8_t errors_at[replicas_cnt];
@@ -571,6 +570,9 @@ static int do_getattr( const char *path, struct stat *st ) {
         return 0;
     }
 
+    char *data_buf = calloc(st->st_size, 1);
+    file_data_read(path, data_buf, st->st_size, 0, configs[i]);
+
     for (int cnt = 0; cnt < replicas_cnt; cnt++)
     {
         log_debug("[getattr] ! FIXING %d REPLICA: ERROR %d !", cnt, errors_at[cnt]);
@@ -582,19 +584,25 @@ static int do_getattr( const char *path, struct stat *st ) {
             // Supported: Either missing block, or wrong block (checksum difference)
             // TODO: Replace only missing blocks, right now fixes whole files
 
-            // read file
-            char *data_buf = calloc(st->st_size, 1);
-            
-            file_data_read(path, data_buf, st->st_size, 0, configs[i]);
-            printf("DATA: %s\n", data_buf);
-            char *empty = calloc(MD5_DIGEST_LENGTH, 1);
-            write_new_file(path, empty, data_buf, st->st_size, configs[cnt]);
 
-            // store in a buf
+            // if directory, no need to write
+            if (S_ISDIR(st->st_mode))
+            {
+                   int ret = do_mkdir(path, st->st_mode);
+                   printf("MKDIR RETURNED %d %d\n", ret, errno);
+            }
+            else // if regular file
+            {
+                // read file
+                printf("DATA: %s\n", data_buf);
+                char *empty = calloc(MD5_DIGEST_LENGTH, 1);
+                write_new_file(path, empty, data_buf, st->st_size, configs[cnt]);
+            }
+
         } else
         if (errors_at[cnt] == -2)
         {
-            // No such file
+            // No such file or directory
         } else
         if (errors_at[cnt] == 0)
         {
@@ -605,7 +613,6 @@ static int do_getattr( const char *path, struct stat *st ) {
             // Other errors
         }
     }
-
     
 	log_debug("[getattr] End");
 	return 0;
@@ -619,6 +626,14 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 	log_debug("[readdir] Requested path: %s", path);
 	
 	char* fpath = xlate(path, src1);
+
+    for (int i = 0; i < replicas_cnt; i++)
+    {
+        if (configs[i].status == INACTIVE)
+        {
+            return -1;
+        }
+    }
 
 	log_debug("[readdir] Full path: %s", fpath);
 
@@ -718,30 +733,30 @@ static int do_open(const char *path, struct fuse_file_info *fi)
 */
 int decode_hamming(char *buf, size_t size, unsigned char *parity_buf, int *damaged_buf, replica_config_t config)
 {
-    int c = 0;
+    unsigned int c = 0;
 
     //P0 = D0 + D1 + D3 + D4 + D6
     //P1 = D0 + D2 + D3 + D5 + D6
     //P2 = D1 + D2 + D3 + D7
     //P3 = D4 + D5 + D6 + D7
-    char *calculated_parity = calloc(size, 1);
+    unsigned char *calculated_parity = calloc(size/2, 1);
     for (int i = 0; i < size; i++)
     {
         if (buf[i] == 0)
         {
             break;
         }
-        char cur_byte = buf[i];
-        char cur_shift = (i % 2 ? 0 : 4);
-        unsigned char cur_parity = parity_buf[i/2] >> cur_shift;
+        unsigned char cur_byte = buf[i];
+        //char cur_shift = (i % 2 ? 0 : 4);
+        unsigned char cur_parity = parity_buf[i];
         int c = 0;
 
         calculate_hamming(calculated_parity, i, cur_byte);
-        printf("par: %d cur_par %d\n", (calculated_parity[i/2] & 0x0f), cur_parity & 0x0f);
-        c |= (1 * getBit(cur_parity, 0)) ^ (calculated_parity[i/2] & 0b0001);
-        c |= (2 * getBit(cur_parity, 1)) ^ (calculated_parity[i/2] & 0b0010);
-        c |= (4 * getBit(cur_parity, 2)) ^ (calculated_parity[i/2] & 0b0100);
-        c |= (8 * getBit(cur_parity, 3)) ^ (calculated_parity[i/2] & 0b1000);
+        printf("par: %d cur_par %d\n", (calculated_parity[i] & 0x0f), cur_parity & 0x0f);
+        c |= (1 * getBit(cur_parity, 0)) ^ (calculated_parity[i] & 0b0001);
+        c |= (2 * getBit(cur_parity, 1)) ^ (calculated_parity[i] & 0b0010);
+        c |= (4 * getBit(cur_parity, 2)) ^ (calculated_parity[i] & 0b0100);
+        c |= (8 * getBit(cur_parity, 3)) ^ (calculated_parity[i] & 0b1000);
         printf("c %d size %d %d \n", c, size, buf[i]);
     
         if ( c)
@@ -772,6 +787,7 @@ int block_replica_read(const char *path, char *buffer, size_t *size, off_t offse
 {
     // Read depending on our options
     int block_size = 4;
+    
     int last_block = attach_redundancy_method(config) ? config.paths_size - 1 : config.paths_size;
     int start_block = offset % last_block;
     int current_block = start_block;
@@ -780,7 +796,7 @@ int block_replica_read(const char *path, char *buffer, size_t *size, off_t offse
     int bytes_read = 0;
     int ret = 0;
 
-    char *parity_buf = calloc(total_size, 1);
+    unsigned char *parity_buf = calloc(total_size, 1);
     char parity_char = 0x00;
 
     unsigned char *stored_md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
@@ -852,7 +868,7 @@ int block_replica_read(const char *path, char *buffer, size_t *size, off_t offse
         if (should_use_hamming(config))
         {
             ret = decode_hamming(buffer, bytes_read, parity_buf, NULL, config);
-            if (should_correct_errors || 1)
+            if (should_correct_errors(config))
             {
                 char *filepath = xlate(path, config.paths[0]);
                 correct_file(filepath, NULL, buffer, parity_buf, bytes_read, config);
@@ -1124,17 +1140,18 @@ size_t calculate_hamming(unsigned char* parity_buf, off_t pos, char current_byte
         p1 = getBit(current_byte, 0) ^ getBit(current_byte, 2) ^ getBit(current_byte, 3) ^ getBit(current_byte, 5) ^ getBit(current_byte, 6);
         p2 = getBit(current_byte, 1) ^ getBit(current_byte, 2) ^ getBit(current_byte, 3) ^ getBit(current_byte, 7);
         p3 = getBit(current_byte, 4) ^ getBit(current_byte, 5) ^ getBit(current_byte, 6) ^ getBit(current_byte, 7);
-    
-        parity_buf[pos/2] <<= 1;
-        parity_buf[pos/2] |= p3;
-        parity_buf[pos/2] <<= 1;
-        parity_buf[pos/2] |= p2;
-        parity_buf[pos/2] <<= 1;
-        parity_buf[pos/2] |= p1;
-        parity_buf[pos/2] <<= 1;
-        parity_buf[pos/2] |= p0;
 
-        if (!(pos % 2)) parity_buf[pos/2] <<= 3;
+        char c = 0x00;
+        c |= p3;
+        c <<= 1;
+        c |= p2;
+        c <<= 1;
+        c |= p1;
+        c <<= 1;
+        c |= p0;
+
+        parity_buf[pos] |= c;
+        //if (!(pos % 2)) parity_buf[pos/2] <<= 4;
     
     return 4; 
 }
@@ -1162,7 +1179,7 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
     
     // Write depending on our options
     int block_size = 4;
-    int last_block = attach_redundancy_method(config) ? config.paths_size - 1 : config.paths_size;
+    int last_block = should_attach_to_new(config) ? config.paths_size - 1 : config.paths_size;
     int start_block = offset % last_block;
     int current_block = start_block;
     int size_to_write = *size;
@@ -1192,10 +1209,11 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
                 return -errno;
             }
         }
-        
         current_block++;
         current_block %= last_block;
     }
+
+    for (int i = 0; i < )
 
     for (int i = 0; i < config.paths_size; i++)
     {
@@ -1504,12 +1522,82 @@ static int do_mknod(const char *path, mode_t mode, dev_t dev)
     return 0;
 }
 
+int block_replica_mkdir(const char *path, mode_t mode, replica_config_t config)
+{
+    int ret;
+    int exists = 0;
+
+    for (int i = 0; i < config.paths_size; i++)
+    {
+        char *fpath = xlate(path, config.paths[i]);
+        ret = mkdir(fpath, mode);
+        if (ret == -1)
+        {
+            if (errno == EEXIST)
+            {
+                exists++;
+                continue;
+            }
+            return errno;
+        }
+    }
+
+    if (exists == config.paths_size) return EEXIST;
+
+    return 0;
+}
+
+int mirror_replica_mkdir(const char *path, mode_t mode, replica_config_t config)
+{
+    
+    return 0;
+}
+
+int do_mkdir (const char *path, mode_t mode)
+{
+    log_debug("[do_mkdir] Running ");
+    // Stores return value of writing function
+    int val;
+    for(int i = 0; i < replicas_cnt; i++)
+    {
+        if (configs[i].status == INACTIVE)
+        {
+            log_debug("[do_mkdir] Replica %d is inactive");
+            continue;
+        }
+        switch (configs[i].type)
+        {
+            case MIRROR:
+                log_debug("[do_mkdir] Mirror replica ");
+                val = mirror_replica_mkdir(path, mode, configs[i]);      
+            break;
+            case BLOCK:
+                log_debug("[do_mkdir] Block replica ");
+                val = block_replica_mkdir(path, mode, configs[i]);
+            break;
+        }
+        if (val)
+        {
+            printf ("Returned error %d\n", val);
+            switch(errno)
+            {
+                case EBADF:
+                        
+                        break;
+            }
+        }
+    }
+
+    return 0;
+}
+
 
 static struct fuse_operations operations = {
     .getattr = do_getattr,
     .readdir = do_readdir,
     .read = do_read,
     .mknod = do_mknod,
+    .mkdir = do_mkdir,
 
     .open = do_open,
     .write = do_write,
