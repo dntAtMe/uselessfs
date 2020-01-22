@@ -88,19 +88,32 @@ Dane sa dzielone i bity parzystosci sa obliczane podobnie do poprzedniego poziom
 \end{figure}
 \newpage
 \subsection{Standardowe repliki systemu}
-Repliki zostaly zaprojektowane na podstawie poziomow RAID. Roznia sie miedzy soba sposobem wprowadzenia redundancji danych oraz mozliwym zastosowaniem. System funkcjonuje z jedna replika, kosztem nizszej redundancji. Ponizej opisano proponowane rodzaje replik oraz rozwazono ich mocne i slabe strony. Wszystkie rodzaje mozna podzielic na dwie kategorie:
+Repliki zostaly zaprojektowane na podstawie poziomów RAID. Rozwiązania różną się 
+między sobą sposobem wprowadzenia redundancji danych oraz podziału danych. 
+System funkcjonuje z conajmniej jedną repliką, większa ilość replik oznacza większą ilość redundantnych danych. 
+Poniżej opisano proponowane rodzaje replik oraz rozważono ich mocne i słabe strony. 
+Repliki można podzielić na następujące kategorie:
 \begin{itemize}
-    \item Replika standardowa - Dokonuje detekcji bledow w plikach, jednak w przypadku wykrycia takiego bledu lub desynchronizacji z innymi replikami, nie jest w stanie dokonac korekty bledow bez dodatkowych replik
-    \item Replika korekcyjna - Dokonuje zarowno detekcji, jak i korekcji znalezionych bledow. Jesli korekta znalezionych bledow jest niemozliwa, zachowuje sie podobnie do repliki bez korekty - desynchronizacja moze zostac naprawiona wylacznia z dodatkowymi replikami
+    \item Replika standardowa - dokonuje detekcji błędów w plikach, 
+    jednak w przypadku wykrycia takiego błędu lub desynchronizacji z innymi replikami, 
+    nie jest w stanie dokonać korekty błędów bez kopiowania danych z pozostałych replik.
+    \item Replika korekcyjna - dokonuje zarówno detekcji, 
+    jak i korekcji znalezionych błędów. 
+    Jeśli korekta znalezionych błędów jest niemożliwa, zachowuje się 
+    podobnie do repliki standardowej - desynchronizacja może zostać naprawiona wyłącznie 
+    przy pomocy dodatkowych replik
 \end{itemize}
-Repliki korekcyjne dodają funkcjonalność do standardowej, dlatego zostały omówione w późniejszej sekcji pracy. 
+Repliki korekcyjne rozszerzają funkcjonalność standardową, dlatego zostały omówione w późniejszej sekcji pracy. 
 
 W przypadku trwałej awarii repliki takiej jak uszkodzenie dysku, replika zostaje oznaczona jako nieaktywna i nie są podejmowane kolejne próby odczytu czy zapisu danych.
 \subsubsection{Repliki Lustrzane (MR)}
-Oparte na schemacie RAID-1 repliki tego typu stanowią lustrzane odbicie danych. Każdy plik występuje dokładnie raz we wszystkich replikach lustrzanych.
+Oparte na schemacie RAID-1 repliki tego typu stanowią lustrzane odbicie danych. 
+Każdy plik występuje dokładnie raz we wszystkich replikach lustrzanych.
 \begin{itemize}
-        \item Naprawia błędy innych replik kopiując całe pliki
-        \item Wszystkie dane zamontowane w jednym miejscu. W przypadku, kiedy jeden dysk zostanie uszkodzony, dane zostają utracone.
+        \item Naprawia błędy w innych replikach kopiując całe pliki
+        \item Wszystkie dane zostają zamontowane w jednym miejscu. 
+        W przypadku, kiedy dysk, na którym znajduje się replika, zostanie uszkodzony, 
+        dane zostają utracone.
 \end{itemize}
 
 \begin{figure}[h!]
@@ -110,14 +123,27 @@ Oparte na schemacie RAID-1 repliki tego typu stanowią lustrzane odbicie danych.
         \label{fig:raid1}
 \end{figure}
 
-Standardowe MR nie są w stanie naprawić uszkodzonych plików. Jedynym rozwiązaniem jest zastąpić uszkodzone pliki w całości danymi z innej repliki. Repliki lustrzane z korektą błędów opisane w dalszej części pracy rozszerzają funkcjonalność podstawowych replik.
+Standardowa replika lustrzana nie jest w stanie naprawić znalezionych błędów. 
+Jedynym rozwiązaniem jest zastąpić uszkodzone pliki w całości danymi z innej repliki. 
+Repliki lustrzane z korektą błędów opisane w dalszej części pracy pozwalają 
+naprawiać uszkodzone dane bez potrzeby przenoszenia plików pomiędzy replikami.
 \subsubsection{Repliki Blokowe (BR)}
-W replikach tego typu pliki są rozkładane na części i zapisywane w kolejnych katalogach będących odpowiednikiem dysków poziomu RAID-0. Tak samo katalogi mogą być rozmieszczone na różnych urządzeniach przechowujących. Każdy z katalogów może również być repliką. Jedna część pliku nazywana jest dalej blokiem.
+W replikach tego typu pliki są rozkładane na części i zapisywane w kolejnych katalogach 
+będących odpowiednikiem dysków poziomu RAID-0. 
+Tak samo katalogi mogą być rozmieszczone na różnych urządzeniach przechowujących. 
+Każdy z katalogów może również być repliką, tworząc drzewo replik. 
+Jedna część pliku nazywana jest dalej blokiem.
 Rozkład danych jest możliwy na dwa sposoby:
 \begin{itemize}
     \item Pliki podzielone na stałą ilość bloków. 
 
-            Zmiana wielkości pliku może powodować zmianę rozmiaru wszystkich bloków danego pliku dla wyrównania wielkości, lub jedynie tego bloku, do którego dane zostają dopisane. W takim wypadku bloki nie są jednakowych rozmiarów. Możliwe jest ograniczenie rozmiaru pojedynczego bloku, tym samym ograniczając maksymalny rozmiar pliku.
+            Zmiana wielkości pliku może powodować zmianę rozmiaru wszystkich bloków 
+            danego pliku dla wyrównania wielkości, 
+            lub jedynie tego bloku, do którego dane zostają dopisane. 
+            W takim wypadku bloki nie są jednakowych rozmiarów. 
+            Możliwe jest ograniczenie rozmiaru pojedynczego bloku, 
+            tym samym ograniczając maksymalny rozmiar pliku. 
+            Każde poddrzewo repliki ma dokładnie jeden blok pliku.
             \begin{figure}[h!]
                     \centering
                     \includegraphics{BR-1.png}
@@ -126,7 +152,9 @@ Rozkład danych jest możliwy na dwa sposoby:
             \end{figure}
     \item Pliki podzielone na zmienną ilość części o ograniczonych wielkościach
 
-            Określony jest maksymalny dozwolony rozmiar dla pojedynczego bloku. Przy przekroczeniu rozmiaru bloku, system tworzy kolejny w następnym katalogu dopóki jest miejsce. 
+            Określony jest maksymalny dozwolony rozmiar dla pojedynczego bloku. 
+            Przy przekroczeniu rozmiaru bloku, system tworzy kolejny w następnym katalogu 
+            dopóki jest miejsce. W jednym poddrzewie repliki może znajdować się kilka bloków. 
             \begin{figure}[h!]
                     \centering
                     \includegraphics{BR-2.png}
