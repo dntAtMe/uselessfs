@@ -93,28 +93,50 @@ char getBit(char byte, int bit)
 }
 
 hash_t *h;
+char *recovery_dir="/tmp";
 
 char src1[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r1";
 char src2[]="/home/dntAtMe/code/fuse/uselessfs/workspace/r2";
 int replicas_cnt;
 
-char *xlate(const char *fname, const char *rpath)
+char *xlate(const char *fname, const char *rpath, replica_config_t config, int path_num)
 {
 	char *rname;
 	int   rlen, flen;
-
+    char *ptr;
+    struct stat sb;
+    char *tmpfolder = NULL; 
+    
 	if (!rpath || !fname) {
 		return NULL;
 	}
 
-	rlen = strlen(rpath);
+
+    if (stat(rpath, &sb) == 0) {
+        printf("XLATE: REPLICA EXISTS\n");
+    } else {
+        ptr = strrchr(rpath, '/');
+        tmpfolder = malloc(4 + strlen(rpath));
+        strcpy(tmpfolder, recovery_dir);
+        strcpy(tmpfolder + 4, ptr);
+        printf("XLATE: REPLICA DOESN'T EXIST %s %s\n", tmpfolder, recovery_dir);
+
+        mkdir(tmpfolder, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+        config.paths[path_num] = tmpfolder;
+        return tmpfolder;
+    }
+
+	rlen = strlen(tmpfolder ? tmpfolder : rpath);
 	flen = strlen(fname);
+
 	rname = malloc(1 + rlen + flen);
 	if (rname) {
-		strcpy(rname, rpath);
+		strcpy(rname, tmpfolder ? tmpfolder : rpath);
 		strcpy(rname + rlen, fname);
 	}
 	log_debug("xlate %s", rname);
+
+
 	return rname;
 }
 
@@ -194,7 +216,7 @@ int write_new_file(char *path, unsigned char *checksum, char *data_buffer, size_
         FILE *fhs[config.paths_size];
         for (int i = 0; i < config.paths_size; i++)
         {
-            fhs[i] = fopen(xlate(path, config.paths[i]), "w");
+            fhs[i] = fopen(xlate(path, config.paths[i], config, i), "w");
             for (int chk = 0; chk < MD5_DIGEST_LENGTH; chk++) fputc(checksum[chk], fhs[i]);
             if (fhs[i] == NULL)
             {
@@ -239,12 +261,12 @@ int write_new_file(char *path, unsigned char *checksum, char *data_buffer, size_
         {
             printf("CALCULATING MD5 FOR PATH %d\n", i);
             unsigned char *md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
-            ret = calc_md5(xlate(path, config.paths[i]), md5_buffer, 1, 1);
+            ret = calc_md5(xlate(path, config.paths[i], config, i), md5_buffer, 1, 1);
             if (ret)
             {
                 return ret;
             }
-            ret = change_checksum(md5_buffer, xlate(path, config.paths[i])); 
+            ret = change_checksum(md5_buffer, xlate(path, config.paths[i], config, i)); 
             if (ret)
             {
                 return ret;
@@ -314,7 +336,7 @@ int file_data_read(char *path, char *data_buf, size_t size, off_t offset, replic
 
         for (int i = 0; i < p_size; i++)
         {
-            char *fpath = xlate(path, config.paths[i]);
+            char *fpath = xlate(path, config.paths[i], config, i);
             files[i] = fopen(fpath, "r+");
             printf("%s is being opened.\n", fpath);
 
@@ -368,7 +390,7 @@ int block_replica_getattr(const char *path, replica_config_t config, int number,
 
     for (int i = 0; i < config.paths_size; i++)
     {
-        char *fpath = xlate(path, config.paths[i]);
+        char *fpath = xlate(path, config.paths[i], config, i);
 
         res = lstat(fpath, stats + i);
         if (res == -1) 
@@ -470,7 +492,7 @@ int mirror_replica_getattr(const char *path, replica_config_t config, int number
 
     if (interlace_redundancy_method(config)) 
     {
-        char *fpath = xlate(path, config.paths[0]);
+        char *fpath = xlate(path, config.paths[0], config, 0);
         res = lstat(fpath, st);
         if (res == -1) {
             printf("[getattr] -1, Ending\n");
@@ -603,11 +625,12 @@ static int do_getattr( const char *path, struct stat *st ) {
                 // write_new_file(path, empty, data_buf, st->st_size, configs[cnt]);
             }
 
-        } else
+        }
         if (errors_at[cnt] == -2)
         {
-            // No such file or directory
-        } else
+            char *empty = calloc(MD5_DIGEST_LENGTH, 1);
+            write_new_file(path, empty, data_buf, st->st_size, configs[cnt]);
+         } else
         if (errors_at[cnt] == 0)
         {
             // All done
@@ -625,35 +648,80 @@ static int do_getattr( const char *path, struct stat *st ) {
 static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {	
 	DIR *dp = NULL;
 	struct dirent *de;
-	
 	log_debug("[readdir] Running");
 	log_debug("[readdir] Requested path: %s", path);
 	
-	char* fpath = xlate(path, src1);
+    DIR *dps[replicas_cnt];
+	struct dirent *des[replicas_cnt];
 
     for (int i = 0; i < replicas_cnt; i++)
     {
+        char* fpath = xlate(path, configs[i].paths[0], configs[i], 0);
+
         if (configs[i].status == INACTIVE)
+        {
+            return -1;
+        }
+        dps[i] = opendir(fpath);
+    	if (!dps[i]) 
         {
             return -1;
         }
     }
 
-	log_debug("[readdir] Full path: %s", fpath);
-
-	dp = opendir(fpath);
-	if (!dp) 
-	{
-        return -1;
-	}
-
-    seekdir(dp, offset);
-    while ((de = readdir(dp)) != NULL)
+    for (int i = 0; i < replicas_cnt; i++)
     {
-        if (filler(buffer, de->d_name, NULL, 0, FUSE_FILL_DIR_PLUS))
-            break;
+        seekdir(dps[i], offset);
     }
-    closedir(dp);
+
+    int left = 0;
+    int nulls = 0;
+    while (des[left] == NULL) left++;
+    if (left == replicas_cnt)
+    {
+        printf("READDIR ALL NULL\n");
+    }
+
+    while (1)
+    { 
+        for (int i =0; i < replicas_cnt; i++)
+        {
+            if (dps[i])
+            {
+                des[i] = readdir(dps[i]);
+                if (des[i] == NULL)
+                {
+                    closedir(dps[i]);
+                    dps[i] = NULL;
+                    nulls++;
+                }
+            }
+        }
+        if (nulls >= replicas_cnt) break;
+
+        for (int i = 1; i < replicas_cnt; i++)
+        {
+            if (des[i] == NULL)
+            {
+                continue;
+            }
+            int cmp = strcmp(des[left]->d_name, des[i]->d_name);
+            if (cmp < 0)
+            {
+                filler(buffer, des[left]->d_name, NULL, 0, FUSE_FILL_DIR_PLUS);
+                left = i;
+            } else
+            if (cmp > 0)
+            {
+                filler(buffer, des[i]->d_name, NULL, 0, FUSE_FILL_DIR_PLUS);
+                left = i-1;
+            } else
+            {
+                continue;
+            }
+        }
+        filler(buffer, des[left]->d_name, NULL, 0, FUSE_FILL_DIR_PLUS);       
+    }    
 
 	return 0;
 }
@@ -665,7 +733,7 @@ int block_replica_open(const char *path, struct fuse_file_info *fi, replica_conf
 {
     for (int path_idx = 0; path_idx < config.paths_size; path_idx++)
     {
-        char *full_path = xlate(path, config.paths[path_idx]);
+        char *full_path = xlate(path, config.paths[path_idx], config, path_idx);
     
         int val = open(full_path, fi->flags);
         if (val == -1)
@@ -680,7 +748,7 @@ int block_replica_open(const char *path, struct fuse_file_info *fi, replica_conf
 */
 int mirror_replica_open(const char *path, struct fuse_file_info *fi, replica_config_t config, int *file_handlers, size_t number)
 {
-    char *full_path = xlate(path, config.paths[0]);
+    char *full_path = xlate(path, config.paths[0], config, 0);
     
     int val = open(full_path, fi->flags);
     if (val == -1)
@@ -870,10 +938,10 @@ int block_replica_read(const char *path, char *buffer, size_t *size, off_t offse
             ret = decode_hamming(buffer, bytes_read, parity_buf, NULL, config, should_correct_errors(config));
             if (should_correct_errors(config))
             {
-                char *filepath = xlate(path, config.paths[0]);
+                char *filepath = xlate(path, config.paths[0], config, 0);
                 correct_file(filepath, NULL, buffer, parity_buf, bytes_read, config);
 
-                ret = calc_md5(xlate(path, config.paths[0]), calculated_md5_buffer, 1, 1);
+                ret = calc_md5(xlate(path, config.paths[0], config, 0), calculated_md5_buffer, 1, 1);
                 if (ret == -1)
                 {
                     return -1;
@@ -922,7 +990,7 @@ int block_replica_read(const char *path, char *buffer, size_t *size, off_t offse
                 // Error
                 return errno;
             }
-            ret = calc_md5(xlate(path, config.paths[cur]), calculated_md5_buffer, 1, 1);
+            ret = calc_md5(xlate(path, config.paths[cur], config, cur), calculated_md5_buffer, 1, 1);
             if (ret == -1)
             {
                 return -1;
@@ -989,7 +1057,7 @@ int mirror_replica_read(const char *path, char *buffer, size_t *size, off_t offs
     log_debug("[mirror_replica_read] buffer: %s", buffer);
 
 
-    ret = calc_md5(xlate(path, config.paths[0]), calculated_md5_buffer, 1, 1);
+    ret = calc_md5(xlate(path, config.paths[0], config, 0), calculated_md5_buffer, 1, 1);
     if (ret == -1)
     {
         return -1;
@@ -1009,9 +1077,9 @@ int mirror_replica_read(const char *path, char *buffer, size_t *size, off_t offs
         ret = decode_hamming(buffer, *size, parity_buf, NULL, config, should_correct_errors(config));
         if (should_correct_errors || 1)
         {
-            char *filepath = xlate(path, config.paths[0]);
+            char *filepath = xlate(path, config.paths[0], config, 0);
             correct_file(filepath, NULL, buffer, parity_buf, bytes_read, config);
-            ret = calc_md5(xlate(path, config.paths[0]), calculated_md5_buffer, 1, 1);
+            ret = calc_md5(xlate(path, config.paths[0], config, 0), calculated_md5_buffer, 1, 1);
             if (ret == -1)
             {
                 return -1;
@@ -1088,27 +1156,27 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
     if (missing_file == replicas_cnt)
     {
         // Failed everywhere
-	    log_debug("[getattr] ! MISSING FILE IN ALL REPLICAS !");
+	    log_debug("[read] ! MISSING FILE IN ALL REPLICAS !");
         return -2;
     }
     if (i == replicas_cnt)
     {
         // Failed everywhere
-        log_debug("[getattr] ! ALL REPLICAS FAILED !");
+        log_debug("[read] ! ALL REPLICAS FAILED !");
         return -2;
         
     }
     if (i == 0)
     {
         // No errors
-        log_debug("[getattr] ! NO ERRORS FOUND !");
+        log_debug("[read] ! NO ERRORS FOUND !");
         return size - size_to_read;
     }
 
     char *data_buf = calloc(size, 1);
     char *check_buf = calloc(size, 1);
     next_free_fh = 0;
-    int check_size = size;    log_debug("[getattr] ! FILE READ %d %d !", size, i);
+    int check_size = size;    log_debug("[read] ! FILE READ %d %d !", size, i);
 
     file_data_read(path, data_buf, size, 0, configs[i]);
 
@@ -1186,7 +1254,7 @@ static int do_read(const char *path, char *buffer, size_t size, off_t offset, st
 static int do_chmod(const char *path,  mode_t mode)
 {
     char *fpath;
-    fpath = xlate(path, src1);
+    fpath = xlate(path, configs[0].paths[0], configs[0], 0);
     
     log_debug("[chmod] Full path: %s", fpath);
     return chmod(fpath, mode);
@@ -1195,7 +1263,7 @@ static int do_chmod(const char *path,  mode_t mode)
 static int do_chown(const char *path, uid_t uid, gid_t gid)
 {
     char *fpath;
-    fpath = xlate(path, src1);
+    fpath = xlate(path, configs[0].paths[0], configs[0], 0);
     log_debug("[chown] Full path: %s", fpath);
     
     return chown(fpath, uid, gid);
@@ -1204,7 +1272,7 @@ static int do_chown(const char *path, uid_t uid, gid_t gid)
 static int do_truncate(const char *path, off_t size)
 {
     char *fpath;
-    fpath = xlate(path, src1);
+    fpath = xlate(path, configs[0].paths[0], configs[0], 0);
     log_debug("[truncate] Full path: %s", fpath);
     
     return truncate(fpath, size);
@@ -1395,12 +1463,12 @@ int block_replica_write(const char *path, const char *buf, size_t *size,
     {
         printf("CALCULATING MD5 FOR PATH %d\n", i);
         unsigned char *md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
-        ret = calc_md5(xlate(path, config.paths[i]), md5_buffer, 1, 1);
+        ret = calc_md5(xlate(path, config.paths[i], config, i), md5_buffer, 1, 1);
         if (ret)
         {
             return ret;
         }
-        ret = change_checksum(md5_buffer, xlate(path, config.paths[i])); 
+        ret = change_checksum(md5_buffer, xlate(path, config.paths[i], config, i)); 
         if (ret)
         {
             return ret;
@@ -1425,12 +1493,12 @@ int mirror_replica_write(const char *path, const char *buf, size_t *size,
     int ret;
     int size_to_write = *size;
 
-    char *fullpath = xlate(path, config.paths[0]);
+    char *fullpath = xlate(path, config.paths[0], config, 0);
     char *hiddenpath = malloc(strlen(path)+1);
     strcpy(hiddenpath+1, path);
     hiddenpath[0] = '/';
     hiddenpath[1] = '.';
-    char *hiddenpath_parity = xlate(hiddenpath, config.paths[0]);
+    char *hiddenpath_parity = xlate(hiddenpath, config.paths[0], config, 0);
 
     for (int i=0;i<size_to_write;i++)
     {
@@ -1452,12 +1520,12 @@ int mirror_replica_write(const char *path, const char *buf, size_t *size,
     }
 
     unsigned char *md5_buffer = calloc(MD5_DIGEST_LENGTH, sizeof(char));
-    ret = calc_md5(xlate(path, config.paths[0]), md5_buffer, 1, 1);
+    ret = calc_md5(xlate(path, config.paths[0], config, 0), md5_buffer, 1, 1);
     if (ret)
     {
         return ret;
     }
-    ret = change_checksum(md5_buffer, xlate(path, config.paths[0])); 
+    ret = change_checksum(md5_buffer, xlate(path, config.paths[0], config, 0)); 
     if (ret)
     {
         return -1;
@@ -1538,7 +1606,7 @@ int block_replica_mknod(const char *path, mode_t mode, dev_t dev, replica_config
 
     for (int i = 0; i < config.paths_size; i++)
     {
-        char *fullpath = xlate(path, config.paths[i]);
+        char *fullpath = xlate(path, config.paths[i], config, i);
         ret = mknod(fullpath, mode, dev);
         if (ret)
         {
@@ -1565,12 +1633,12 @@ int block_replica_mknod(const char *path, mode_t mode, dev_t dev, replica_config
 int mirror_replica_mknod(const char *path, mode_t mode, dev_t dev, replica_config_t config)
 {
     int ret;
-    char *fullpath = xlate(path, config.paths[0]);
+    char *fullpath = xlate(path, config.paths[0], config, 0);
     char *hiddenpath = malloc(strlen(path)+1);
     strcpy(hiddenpath+1, path);
     hiddenpath[0] = '/';
     hiddenpath[1] = '.';
-    char *hiddenpath_parity = xlate(hiddenpath, config.paths[0]);
+    char *hiddenpath_parity = xlate(hiddenpath, config.paths[0], config, 0);
     
     FILE *ft;
     char empty[MD5_DIGEST_LENGTH];
@@ -1673,7 +1741,7 @@ int block_replica_mkdir(const char *path, mode_t mode, replica_config_t config)
 
     for (int i = 0; i < config.paths_size; i++)
     {
-        char *fpath = xlate(path, config.paths[i]);
+        char *fpath = xlate(path, config.paths[i],config, i);
         ret = mkdir(fpath, mode);
         if (ret == -1)
         {
@@ -1752,6 +1820,10 @@ static struct fuse_operations operations = {
     .release = do_release
 };
 
+int read_config()
+{
+}
+
 int main(int argc, char* argv[]) {
     h = hash_new(15);
     char** fuse_argv = calloc(argc, sizeof(char*)); 
@@ -1762,73 +1834,96 @@ int main(int argc, char* argv[]) {
     {
         printf("Need arguments \n");
     }
-    for (int curarg = 1; curarg < argc; curarg++)
+    if (argv[1][0] == '@')
     {
-        printf("%s\n", argv[curarg]);
-        if (!strcmp(argv[curarg], "--number") )
+        FILE * fp;
+        char * line = NULL;
+        size_t len = 0;
+        ssize_t read;
+        uint8_t cur_replica = 0;
+
+        fp = fopen((argv[1])+1, "r");
+        if (fp == NULL)
+            exit(EXIT_FAILURE);
+
+        while ((read = getline(&line, &len, fp)) != -1) 
         {
-            printf(  "ENTER %s\n", argv[curarg]);
-            replicas_cnt = (int) strtol(argv[curarg+1], (char**) NULL, 10);
-            configs = calloc(replicas_cnt, sizeof(replica_config_t));
-            curarg++;
-            continue;
-        } else if (!strcmp(argv[curarg], "--block-replica") )
-        {
-            int blocks_cnt = (int) strtol(argv[curarg+1], (char**) NULL, 10);
-            int flags = (int) strtol(argv[curarg+2], (char**) NULL, 2);
-            configs[replica_configs_c].paths = calloc(blocks_cnt, sizeof(char*));
-            configs[replica_configs_c].paths_size = blocks_cnt;
-            
-            for (int i = 0; i < blocks_cnt; i++)
+            if(len && line[len-1] == '\n')
+                line[len-1] = 0;
+
+            char *tokenized = strtok(line, " \n");
+            if (tokenized == NULL)
             {
-                char *curpath = argv[curarg+3+i];
+                continue;
+            }
+            if (!strcmp(tokenized, "--number") )
+            {
+                printf(  "ENTER %s\n", tokenized);
+                replicas_cnt = (int) strtol(strtok(NULL, " "), (char**) NULL, 10);
+                configs = calloc(replicas_cnt, sizeof(replica_config_t));
+                continue;
+            } else if (!strcmp(tokenized, "--block-replica") )
+            {
+                int blocks_cnt = (int) strtol(strtok(NULL, " "), (char**) NULL, 10);
+                int flags = (int) strtol(strtok(NULL, " "), (char**) NULL, 2);
+                configs[replica_configs_c].paths = calloc(blocks_cnt, sizeof(char*));
+                configs[replica_configs_c].paths_size = blocks_cnt;
+                
+                for (int i = 0; i < blocks_cnt; i++)
+                {
+                    char *curpath = strtok(NULL, " ");
+                    if (curpath[0] != '/')
+                    {
+                        char *envpath = getenv("PWD");
+                        strncat(envpath, "/", 1);
+                        curpath = xlate(curpath, envpath, configs[0], 0);
+                    }
+                    configs[replica_configs_c].paths[i] = curpath;
+                    printf("Replica %d: %s\n", i, configs[replica_configs_c].paths[i]);
+                }
+                configs[replica_configs_c].status = CLEAN;
+                configs[replica_configs_c].type = BLOCK;
+                configs[replica_configs_c].flags = flags;
+                configs[replica_configs_c].priority = 0;
+                printf("Replica: %s\n", tokenized);
+                replica_configs_c++;
+                continue;
+            } else if (!strcmp(tokenized, "--mirror-replica"))
+            {
+                char* curpath = strtok(NULL, " ");
+                // Absolute path
                 if (curpath[0] != '/')
                 {
                     char *envpath = getenv("PWD");
                     strncat(envpath, "/", 1);
-                    curpath = xlate(curpath, envpath);
+                    curpath = xlate(curpath, envpath, configs[0], 0);
                 }
-                configs[replica_configs_c].paths[i] = curpath;
-                printf("Replica %d: %s\n", i, configs[replica_configs_c].paths[i]);
-            }
-            configs[replica_configs_c].status = CLEAN;
-            configs[replica_configs_c].type = BLOCK;
-            configs[replica_configs_c].flags = flags;
-            configs[replica_configs_c].priority = 0;
-            printf("Replica: %s\n", argv[4]);
-            replica_configs_c++;
-            curarg+= 2 + blocks_cnt;
-            continue;
-        } else if (!strcmp(argv[curarg], "--mirror-replica") )
-        {
-            char* curpath = argv[curarg+1];
-            // Absolute path
-            if (curpath[0] != '/')
+                configs[replica_configs_c].paths = calloc(1, sizeof(char*));
+                configs[replica_configs_c].paths[0] = curpath;
+                configs[replica_configs_c].paths_size = 1;
+                
+                configs[replica_configs_c].status = CLEAN;
+                configs[replica_configs_c].type = MIRROR;
+                configs[replica_configs_c].flags = 0x00 | FLAG_ATTACH_REDUNDANCY | FLAG_CORRECT_ERRORS | FLAG_USE_INTERLACING | FLAG_INTERLACE_REDUNDANCY | FLAG_USE_CHECKSUM;
+                configs[replica_configs_c].priority = 0;
+                printf("Replica: %s\n", configs[replica_configs_c].paths[0]);
+                printf("Replica: %s\n", argv[4]);
+                replica_configs_c++;
+                continue;
+            } else if (!strcmp(tokenized, "--recovery-dir"))
             {
-                char *envpath = getenv("PWD");
-                strncat(envpath, "/", 1);
-                curpath = xlate(curpath, envpath);
+                recovery_dir = strtok(NULL, " ");
+                printf("RECOVERY %s\n", recovery_dir);
             }
-            configs[replica_configs_c].paths = calloc(1, sizeof(char*));
-            configs[replica_configs_c].paths[0] = curpath;
-            configs[replica_configs_c].paths_size = 1;
-            
-            configs[replica_configs_c].status = CLEAN;
-            configs[replica_configs_c].type = MIRROR;
-            configs[replica_configs_c].flags = 0x00 | FLAG_ATTACH_REDUNDANCY | FLAG_CORRECT_ERRORS | FLAG_USE_INTERLACING | FLAG_INTERLACE_REDUNDANCY | FLAG_USE_CHECKSUM;
-            configs[replica_configs_c].priority = 0;
-            printf("Replica: %s\n", configs[replica_configs_c].paths[0]);
-            printf("Replica: %s\n", argv[4]);
-            replica_configs_c++;
-            curarg++;
-            continue;
+
         }
-        else
+
+        for (int curarg = 2; curarg < argc; curarg++)
         {
+            printf("%s\n", argv[curarg]);
             fuse_argv[fuse_argv_c++] = argv[curarg];
+            
         }
-
     }
-
 	return fuse_main(fuse_argv_c, fuse_argv, &operations, NULL);
 }
