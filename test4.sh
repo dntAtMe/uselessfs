@@ -1,10 +1,12 @@
 MNT="workspace/mountpoint"
 
+echo "[-] Clearing replicas"
 ./prepare_env.sh > /dev/null
-./uselessfs @config/1-two-block-replicas.cfg ${MNT}
+echo "[+] Cleared replicas"
 
+./uselessfs @config/3-two-block-replicas.cfg ${MNT} 
 echo ""
-echo "Write/read test"
+echo "Write/read test with Hamming code correction"
 echo ""
 
 echo "Writing '1st line' on line 0"
@@ -17,15 +19,10 @@ echo "Writing ' ...continued' on line 2"
 echo " ...continued" >> ${MNT}/testfile
 echo ""
 
-echo "Directory: "
-ls -al ${MNT}
+echo "Swapping 't' for 'u':"
+sed -e "s/t/u/g" "${MNT}"/testfile
 echo ""
-echo ""
-
 echo "File content:"
 cat ${MNT}/testfile
-echo ""
-echo ""
-fusermount3 -u ${MNT}
 
-cd -
+fusermount3 -u ${MNT}

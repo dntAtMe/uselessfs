@@ -1,9 +1,12 @@
 \chapter{Podsumowanie}
 \thispagestyle{chapterBeginStyle}
 
-W podsumowanie należy określić stan zakończonych prac projektowych i implementacyjnych. Zaznaczyć, które z zakładanych funkcjonalności systemu udało się zrealizować. Omówić aspekty pielęgnacji systemu w środowisku wdrożeniowym. Wskazać dalsze możliwe kierunki rozwoju systemu, np.\ dodawanie nowych komponentów realizujących nowe funkcje.
-
 W podsumowaniu należy podkreślić nowatorskie rozwiązania zastosowane w projekcie i implementacji (niebanalne algorytmy, nowe technologie, itp.).
 
+W pracy przedstawiono projekt oraz implementację systemu plików zapewniającego redundancję danych, chroniąc je przed uszkodzeniami. Na tle innych systemów plików, projekt jest rozwiązaniem oryginalnym, opartym na technologii RAID. Implementacja może być łatwo rozszerzona o kolejne funkcje. Założenia odnośnie projektu i implementacji wymagały rozwiązania licznych problemów, takich jak weryfikacja integralności danych, lub odpowiedni  podział i korekcja danych.
 
+Nie wszystkie zakładane funkcjonalności systemu zostały zaimplementowane ze względu na szeroki zasięg możliwości i napotkane trudności w implementacji.
 
+System może zostać rozszerzony o kolejne metody detekcji lub korekcji błędów, podziału danych, nowe algorytmy obliczania sum kontrolnych oraz można uzupełnić brakujące funkcjonalności. System w obecnym stanie nie obsługuje wszystkich rodzajów plików, takich jak pliki wykonywalne lub powiązania symboliczne oraz przetwarza tylko wybrane sygnały modułu FUSE.
+
+Praca wymagała zapoznania się z zagadnieniami korekcji i detekcji błędów \cite{Coding}, rozwinęła umiejętności programowania w języku C \cite{MAN} oraz przy użyciu biblioteki \verb|libfuse| \cite{FUSE_Docs}.

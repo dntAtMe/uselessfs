@@ -1,6 +1,6 @@
 \chapter{Implementacja systemu}
 \thispagestyle{chapterBeginStyle}
-W niniejszym rozdziale przedstawiono szczegóły implementacyjne zaproponowanych rozwiązań. Kompletny kod źródłowy wraz z komentarzami oraz testami najduje się w załączniku do pracy.
+W niniejszym rozdziale przedstawiono szczegóły implementacyjne zaproponowanych rozwiązań. Kompletny kod źródłowy wraz z testami najduje się w załączniku do pracy.
 
 \section{Opis technologii}
 
@@ -11,7 +11,21 @@ FUSE udostepnia biblioteke $libfuse$, do ktorej wymagany jest program implementu
 \section{Podział systemu na moduły}
 System plików został zaimplementowany z myślą o dalszym rozwoju. Każda istniejąca replika może być samodzielnie zamontowana jako system plików, ponieważ implementują wszystkie potrzebne do tego funkcje. Dodanie rozwiązań korekcji danych odbywa się przez zaimplementowanie kodera oraz dekodera, a w istniejącym kodzie zminimalizowano ilość potrzebnych zmian. Główny moduł stanowi połączenie między resztą funkcjonalności, takich jak repliki oraz kodowanie dodatkowych informacji. Manipuluje danymi oraz żądaniami użytkownika, przekazując je do odpowiednich modułów. Dzięki temu rozwiązaniu, działanie całego systemu jest niezależne od zastosowanych rozwiązań redundancji.
 
-\textit{images}
-
 \section{Omówienie rozwiązań}
+W implementacji wykorzystano dwa rodzaje replik; blokowe i lustrzane. Ich funkcjonalność jest zależna od wybranch flag. Każda replika ma osiem bitów flag, każdy bit stanowi inną opcję. Nie wszystkie opcje są wykorzystywane w obecnej implementacji oraz nie wszystkie kombinacje flag działają poprawnie, należy więc uważnie dobierać opcje. 
+\subsection {Rozkład danych}
+Dla replik lustrzanych oraz blokowych zastosowano rozkład danych przez przeplatanie kolejnych bajtów danych z bajtami kodu. W ten sposób co drugi bajt w pliku stanowi dane, pozwalając na łatwy odczyt pliku. Ponadto, dla replik blokowych ostatni blok może zostać zarezerwowany dla bloków parzystości. Te bloki nie są przeplatane, znajdują się tam jedynie obliczone bity parzystości prawidłowych danych.
 
+Wszystkie utworzone pliki zawierają sumę kontrolną, funkcję skrótu MD5. Każda próba odczytu lub sprawdzenia pliku weryfikuje poprawność sumy kontrolnej.
+
+\subsection{Redundancja danych}
+Do redundancji danych wykorzystano bity parzystości, kody Hamminga oraz funkcję skrótu MD5. Działanie jest zależne od wybranej konfiguracji repliki. Kod Hamminga jest przeplatany między kolejnymi bajtami danych jako \verb|Hamming(12, 8)|, więc na pojedynczy bajt danych przypadają cztery bity kodu. 
+
+Bity parzystości również mogą być przeplatane pomiędzy bajtami danych, jednak pojedynczy bit parzystości zajmuje cały bajt w pliku. Dodatkowo, wyliczony blok parzystości dla replik blokowych pozwala na szybkie odzyskanie całego bloku danych, co jest użyteczne między innymi w przypadku, kiedy nośnik danych na którym znajdował się blok, został wymontowany w trakcie działania systemu. 
+
+Funkcja skrótu MD5 jest dołączona na początek każdego pliku obsługiwanego przez omawiany system. Weryfikacja poprawności sumy kontrolnej odbywa się po próbach samonaprawy danych, więc błędna suma kontrolna oznacza, że nie można naprawić pliku bez kopiowania danych z innych replik.
+
+Poza próbami odczytu, system również sprawdza integralność plików podczas sprawdzania statusu pliku. Sprawdzając rozmiar pliku system jest w stanie stwierdzić, czy zawartość pliku jest poprawna na podstawie podpisu pliku. 
+
+\subsection{Obsługa błędów}
+Jeśli system wykryje błąd podczas działania na replice, taki jak brak pliku, czy uszkodzony plik bez możliwości samonaprawy, system przechodzi do następnej repliki dopóki nie zakończy sukcesem. Nastepnie próbuje naprawić plik w replikach, na których operował, zastapując plik całkowicie poprawną kopią. Jeśli błąd nadal występuje, oznacza replikę jako nieaktywną i kontynuuje działanie. W przypadku, kiedy we wszystkich replikach zakończono działanie niepowodzeniem, system plików zostaje odmontowany.

@@ -1,38 +1,33 @@
 \chapter{Instalacja i wdrożenie}
 \thispagestyle{chapterBeginStyle}
 
-W tym rozdziale należy omówić zawartość pakietu instalacyjnego oraz założenia co do środowiska, w którym realizowany system będzie instalowany. Należy przedstawić procedurę instalacji i wdrożenia systemu. Czynności instalacyjne powinny być szczegółowo rozpisane na kroki. Procedura wdrożenia powinna obejmować konfigurację platformy sprzętowej, OS (np. konfiguracje niezbędnych sterowników) oraz konfigurację wdrażanego systemu, m.in.\ tworzenia niezbędnych kont użytkowników. Procedura instalacji powinna prowadzić od stanu, w którym nie są zainstalowane żadne składniki systemu, do stanu w którym system jest gotowy do pracy i oczekuje na akcje typowego użytkownika.
-
-
 Implementowany program został przetestowany na systemach Fedora 30 oraz Ubuntu 18.04 na systemie plików ext4. Moduł FUSE jest modułem Unixowych systemów operacyjnych i jest wymagany do działania projektu. 
 
-Zakłada się, że operacje wykonywane na plikach ograniczają się do odczytu, zapisu oraz manipulacji rozmiarem pliku. Dane powinny być zapisywane bajtami, na przykład w charakterze liter alfabetu.
+Zakłada się, że operacje wykonywane na plikach ograniczają się do odczytu oraz zapisu plików. Dane powinny być zapisywane bajtami, na przykład w charakterze liter alfabetu.
 
 Kompilacja kodu źródłowego odbywa się przy wykorzystaniu programu \verb|make|, otrzymany plik służy do zamontowania systemu plików. Przed zamontowaniem zaleca się przygotowaniu pliku tekstowego z przygotowanymi argumentami według wzoru:
 \\
 \\
 \verb| --number ilość replik| \\
 \verb| --tmp katalog zapasowy dla odzyskiwanych danych| \\
-\verb| --fifo Kolejka do odczytu informacji podawanych przez system plików| \\
-Przez kolejkę system informuje o zdarzeniach takich jak konflikt, czy wymagana korekcja danych. Zaleca się odczytywanie danych z kolejki, aby być na bieżąco ze stanem systemu plików oraz zachodzących procesów. 
 
 Dla każdej repliki należy dodać następujące argumenty:
 \\
-\verb| --location nazwa_repliki| \\
-\verb| --type block/mirror| \\
-\verb|[--priority priorytet]| \\
-\verb|[--correction yes/no]| \\
-\verb| --flags 0x00| \\
+\verb| --block-replica ilość_bloków flagi <ścieżki do bloków>| \\
+\verb| --mirror-replica flagi ścieżka_do_repliki | \\
 \\
 
 System plików można zamontować wywołując skompilowany plik w terminalu:
 \\
- \verb|./safefs [punkt zamontowania] <lista argumentów / @plik>|
+ \verb|./uselessfs [punkt zamontowania] <lista argumentów / @plik>|
 \\
 \textbf{punkt zamontowania} - Katalog, który ma służyć użytkownikowi do interakcji z zamontowanym systemem plików.
 \\
 \textbf{lista argumentów}  - argumenty potrzebne do zamontowania plików, mogą być odczytane z pliku \\
 Po wykonaniu powyższych czynności, można zacząć pracę z omawianym systemem plików.
 
-Dodatkowo, do katalogu z programem zostały dodane przykładowe testy oraz narzędzia ułatwiające symulację uszkodzeń danych. Ich dokładne metody użytkowania można sprawdzić przez uruchomienie programów bez argumentów.
+System plików nie jest w pełni funkcjonalny, z tego powodu dołączono pliki konfiguracyjne zawierające przykładowe konfiguracje replik do uruchomienia.
+Dodatkowo, do katalogu z programem zostały dodane przykładowe testy pokazujące możliwe zastosowania replik oraz sposoby na symulację uszkodzenia danych. Uruchomienie programu bez argumentów dostarcza informacji na temat systemu plików oraz stanu zaawansowania projektu.
+
+Do kodu źródłowego dołączono skrypt \verb|prepare_env.sh|, kompilujący program i przygotowujący środowisko do pracy z przykładowymi konfiguracjami.
 

@@ -1,15 +1,9 @@
 \chapter{Projekt systemu}
 \thispagestyle{chapterBeginStyle}
-W tym rozdziale przedstawiono scenariusze oraz przypadki uzycia systemu, na koncu znajduje sie diagram przedstawiajacy zachowanie systemu w okreslonych sytuacjach. Omowiono i przedstawiono w postaci pseudokodu algorytmy zastosowane w systemie. 
+W tym rozdziale przedstawiono scenariusze oraz przypadki użycia systemu. Na końcu znajduje się omówienie i przedstawienie w postaci pseudokodu algorytmów zastosowanych w systemie. 
 
 \section{Założenia i ograniczenia}
-wyłącznie foldery i pliki tekstowe, bez linków itd, podstawowe operacje z czego to wynika podział danych
-
-{\color{dgray}
-Architektura systemu \ldots jest wielowarstwowa i rozproszona, przy czym \ldots. Podsystem  \ldots jest systemem zbiorczym dla danych \ldots wysyłanych do serwera \ldots. 
-
-Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieść się do wykorzystywanych wzorców projektowych} (ang.  Model-View-Controller). Przetwarzanie danych odbywa się \ldots.
-} 
+Na poziomie projektu nałożono ograniczenia na zakres działania omawianego systemu plików. Jedynie dwa rodzaje plików są obsługiwane: Pliki regularne (tekstowe) oraz katalogi. Wynika to z trudności implementacji, na przykład, połączeń symbolicznych, jeśli pliki są podzielone na kilka części. Dodatkowo założono, że na plikach dokonuje się tylko podstawowych operacji odczytu, zapisu, tworzenia oraz usuwania.
 
 \section{Przypadki użycia i scenariusze}
 \subsection{Montowanie systemu plików}
@@ -59,7 +53,7 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
         \end{tabular}
         \caption{Odczyt pliku w standardowej replice}
 \end{table}
-
+\newpage
 \begin{table}[h!]
         \centering
         \begin{tabular}{ |l|p{10cm}| }
@@ -114,7 +108,7 @@ Taka architektura jest zgodna z wzorcem projektowym MVC\footnote{Należy odnieś
         \end{tabular}
         \caption{Odczyt pliku przy wykorzystaniu wielu replik}
 \end{table}
-Tu moglby sie wykres przydac do tego tam wyzej
+\newpage
 \begin{table}[h!]
         \centering
         \begin{tabular}{ |l|p{10cm}| }
@@ -141,8 +135,6 @@ Tu moglby sie wykres przydac do tego tam wyzej
 \end{table}
 
 \newpage
-
-
 \subsection{Zapis pliku}
 \begin{table}[h!]
         \centering
@@ -212,7 +204,6 @@ Tu moglby sie wykres przydac do tego tam wyzej
         \caption{Zapis pliku przy wykorzystaniu wielu replik} 
 \end{table}
 
-\subsection {Niezorganizowane}
 \begin{table}[h!]
         \centering
         \begin{tabular}{ |l|p{10cm}| }
@@ -232,58 +223,66 @@ Tu moglby sie wykres przydac do tego tam wyzej
         \caption{Wybor najlepszej repliki} 
 \end{table}
 
-
-
 \newpage
-
-
-
-
-
-\section{Diagramy}
-
 \section{Opis algorytmów}
 
-W tej sekcji należy wymienić i przedyskutować algorytmy wykorzystywane w systemie. Algorytmy należy przedstawić w pseudokodzie (wykorzystać pakiet \texttt{algorithm2e}). Omówienia poszczególnych kroków algorytmów powinny zawierać odwołania do odpowiednich linii pseudokodu. Dla zaproponowanych autorskich algorytmów należy przeprowadzić analizę ich złożoności czasowej i pamięciowej. 
-
-~\ref{alg:mine}.
-
 {\small
 \begin{pseudokod}[H]
 %\SetAlTitleFnt{small}
-\SetArgSty{normalfont}
-\SetKwFunction{Process}{Process}
-\SetKwFunction{Calculate}{Calculate}
-\KwIn{Zbiór bąbli $B$}
-\KwOut{Wyporność $W$}
-\ForEach{$b \in B$}{
-\Process{$b$}\;
-\For{$i \leftarrow 1$ \KwTo $|B|$}{
-\If{\Calculate{EW($i$,$b$)} $\le$ 0}{
-$b \leftarrow 2*b$\;
+\KwIn{Filepath}
+\KwOut{Errorcode, Buffer}
+\ForEach{$replica \in replicas$}{
+    \If{$replica = $BLOCK}{
+            Errorcode = BlockReplicaRead(path, replica, Buffer)\;
+    }
+    \If{$replica = $MIRROR}{
+            Errorcode = MirrorReplicaRead(path, replica, Buffer)\;
+    }
+    HandleError(Errorcode, replica)\;
 }
-}
-}
-\While{$B \neq \emptyset$}{
-\For{$j \leftarrow 1$ \KwTo $|B|$}{
-\If{\Calculate{FT($j$,$\hat{b}$)} $\le 0$}{
-$w \leftarrow 2*\hat{b}$\;
-$W \leftarrow W \cup \{w\}$\;
-$B \leftarrow B \setminus \{b\}$\;
-}
-}
-}
-\caption{Wybor najlepszej repliki}\label{alg:mine}
+\caption{Odczyt pliku}\label{alg:1}
 \end{pseudokod}
 }
 
+Algorytm \ref{alg:1} dzieli funkcjonalność systemu w zależności od rodzaju repliki. W ten sposób użytkownik może zaimplementować własny rodzaj repliki, dokonując tylko niewielkich zmian w już istniejącym kodzie. W linii 6 znajduje się obsługa błędów, część wspólna dla wszystkich rodzajów replik.
+\\
+\\
+\\
 {\small
 \begin{pseudokod}[H]
 %\SetAlTitleFnt{small}
-\caption{Odczyt danych z pliku}\label{alg:mine}
+\KwIn{Filepath, Replica}
+\KwOut{Errorcode, Buffer}
+\ForEach{$block \in blocks$}{
+        Errorcode = ReadFile( $block.path$ + Filepath, Buffer)\;
+        \If{$InterlaceRedundancy(Replica)$}{
+            Checksum = GetChecksum(Buffer)\;
+            ParityBuffer = GetOddBytes(Buffer)\;
+            Buffer = GetEvenBytes(Buffer)\;
+            CalculatedParityBuffer = CalculateParity(Buffer, Replica)\;
+            \If{CalculatedParityBuffer != ParityBuffer}{
+                \If{$CorrectErrors(Replica)$}{
+                    CorrectErrors(Buffer, block)\;
+                    CalculateChecksum(block)\;
+                    Return\;
+                }
+                Return;
+            }
+            CalculatedChecksum = CalculateChecksum(block)\;
+            \If{CalculatedChecksum != Checksum}{
+                Return;
+            }
+        }
+    Return;
+}
+\caption{Odczyt pliku z repliki blokowej}\label{alg:2}
 \end{pseudokod}
 }
 
+Algorytm \ref{alg:2} dokonuje odczytu zawartości pliku w replice. W zależności od konfiguracji repliki, wykonywane są różne czynności. Jeśli warunek w linii 3. jest spełniony, w replice jest stosowane przeplatanie danych z redundantnymi bitami. Funkcja w linii 7 oblicza redundantne bity, czyli kod Hamminga lub bit parzystości, w zależności od konfiguracji.
+\\
+\\
+\\
 {\small
 \begin{pseudokod}[H]
 %\SetAlTitleFnt{small}
@@ -301,13 +300,6 @@ $B \leftarrow B \setminus \{b\}$\;
 {\small
 \begin{pseudokod}[H]
 %\SetAlTitleFnt{small}
-\caption{Usuwanie pliku}\label{alg:mine}
-\end{pseudokod}
-}
-
-{\small
-\begin{pseudokod}[H]
-%\SetAlTitleFnt{small}
 \caption{Kodowanie Huffmana}\label{alg:mine}
 \end{pseudokod}
 }
@@ -318,20 +310,3 @@ $B \leftarrow B \setminus \{b\}$\;
 \caption{Obliczanie parzystosci dla danych}\label{alg:mine}
 \end{pseudokod}
 }
-
-{\small
-\begin{pseudokod}[H]
-%\SetAlTitleFnt{small}
-\caption{Odzyskiwanie pliku}\label{alg:mine}
-\end{pseudokod}
-}
-
-{\small
-\begin{pseudokod}[H]
-%\SetAlTitleFnt{small}
-\caption{Synchronizacja replik}\label{alg:mine}
-\end{pseudokod}
-}
-
-
-
