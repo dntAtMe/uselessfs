@@ -1,5 +1,3 @@
-gcc fs_main.c log.c -w -o uselessfs -D_FILE_OFFSET_BITS=64 -Iinclude/ -lfuse3 -pthread -lm -lssl -lcrypto
-
 rm -rf workspace/
 mkdir workspace/
 cd workspace/
@@ -7,6 +5,7 @@ mkdir mountpoint/
 mkdir 0-mirror/
 mkdir 1-block/ 1-block/0 1-block/1 1-block/2
 mkdir 2-block/ 2-block/0 2-block/1 2-block/2
+mkdir 3-block/ 3-block/0 3-block/1 3-block/2 3-block/3 3-block/4 3-block/5
 cd - > /dev/null
 echo "Workspace prepared under ./workspace/ directory"
 echo ""

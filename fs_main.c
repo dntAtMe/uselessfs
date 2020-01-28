@@ -20,6 +20,7 @@
 
 int do_mkdir (const char *path, mode_t mode);
 int calculate_parity_byte(char c, char *buf);
+int change_checksum(unsigned char *new_checksum, char *path);
 
 enum replica_status_t {CLEAN, DIRTY, INACTIVE};
 enum replica_type_t {BLOCK, MIRROR};
@@ -987,7 +988,6 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
             k++;
             j = 0;
         }
-        fprintf(stderr, "Going through %s\n", namelist[k][j]->d_name);
         full_namelist[i] = namelist[k][j++]->d_name;
     }
 
@@ -1002,8 +1002,6 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
         }
         if (d == count)
         {
-            fprintf(stderr, "Print %s\n", full_namelist[c]);
-
             full_namelist2[count] = strdup(full_namelist[c]);
             filler(buffer, full_namelist[c], NULL, 0, FUSE_FILL_DIR_PLUS);
             count++;
@@ -2044,13 +2042,7 @@ int mirror_replica_mknod(const char *path, mode_t mode, dev_t dev, replica_confi
 {
     int ret;
     char *fullpath = xlate(path, config->paths[0], config, 0);
-/*
-    char *hiddenpath = malloc(strlen(path)+1);
-    strcpy(hiddenpath+1, path);
-    hiddenpath[0] = '/';
-    hiddenpath[1] = '.';
-    char *hiddenpath_parity = xlate(hiddenpath, config->paths[0], config, 0);
-*/  
+
     FILE *ft;
     char empty[MD5_DIGEST_LENGTH];
 
@@ -2389,7 +2381,7 @@ int main(int argc, char* argv[]) {
         printf("uselessFS\n\n");
 
         printf("Launch:\n");
-        printf("Recommended: @<config file> <fuse args> (Example: ./uselessfs @config/1-example.cfg -d path/to/mountpoint) \n");
+        printf("Recommended: @<config file> <fuse args> (Example: ./uselessfs @config/1-two-block-replicas.cfg -d workspace/mountpoint) \n");
         printf("<args> \n\n");
         
         printf("Important: With -d option when mounting you'll get to see printed logs\n");
@@ -2423,7 +2415,6 @@ int main(int argc, char* argv[]) {
             }
             if (!strcmp(tokenized, "--number") )
             {
-                //printf(  "ENTER %s\n", tokenized);
                 replicas_cnt = (int) strtol(strtok(NULL, " "), (char**) NULL, 10);
                 configs = calloc(replicas_cnt, sizeof(replica_config_t));
                 continue;
@@ -2444,7 +2435,6 @@ int main(int argc, char* argv[]) {
                         curpath = xlate(curpath, envpath, &configs[0], 0);
                     }
                     configs[replica_configs_c].paths[i] = curpath;
-                    //printf("Replica %d: %s\n", i, configs[replica_configs_c].paths[i]);
                 }
                 configs[replica_configs_c].status = CLEAN;
                 configs[replica_configs_c].type = BLOCK;
@@ -2473,14 +2463,11 @@ int main(int argc, char* argv[]) {
                 configs[replica_configs_c].type = MIRROR;
                 configs[replica_configs_c].flags = flags;
                 configs[replica_configs_c].priority = 0;
-                //printf("Replica: %s\n", configs[replica_configs_c].paths[0]);
-                //printf("Replica: %s\n", argv[4]);
                 replica_configs_c++;
                 continue;
             } else if (!strcmp(tokenized, "--recovery-dir"))
             {
                 recovery_dir = strtok(NULL, " ");
-                //printf("RECOVERY %s\n", recovery_dir);
             }
 
         }

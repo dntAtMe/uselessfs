@@ -1,11 +1,11 @@
 \chapter{Instalacja i wdrożenie}
 \thispagestyle{chapterBeginStyle}
 
-Implementowany program został przetestowany na systemach Fedora 30 oraz Ubuntu 18.04 na systemie plików ext4. Moduł FUSE jest modułem Unixowych systemów operacyjnych i jest wymagany do działania projektu. 
+Implementowany program został przetestowany na systemach Fedora 30 oraz Ubuntu 18.04 na systemie plików ext4. Moduł FUSE jest modułem Unixowych systemów operacyjnych i jest wymagany do działania projektu, potrzebna jest również biblioteka \verb|openssl|.
 
 Zakłada się, że operacje wykonywane na plikach ograniczają się do odczytu oraz zapisu plików. Dane powinny być zapisywane bajtami, na przykład w charakterze liter alfabetu.
 
-Kompilacja kodu źródłowego odbywa się przy wykorzystaniu programu \verb|make|, otrzymany plik służy do zamontowania systemu plików. Przed zamontowaniem zaleca się przygotowaniu pliku tekstowego z przygotowanymi argumentami według wzoru:
+Kompilacja kodu źródłowego odbywa się przy wykorzystaniu programu \verb|make|, otrzymany plik służy do zamontowania systemu plików. Podczas montowanie systemu plików zaleca się skorzystanie z gotowej konfiguracji ustawiającej argumenty według wzoru:
 \\
 \\
 \verb| --number ilość replik| \\
@@ -29,5 +29,5 @@ Po wykonaniu powyższych czynności, można zacząć pracę z omawianym systemem
 System plików nie jest w pełni funkcjonalny, z tego powodu dołączono pliki konfiguracyjne zawierające przykładowe konfiguracje replik do uruchomienia.
 Dodatkowo, do katalogu z programem zostały dodane przykładowe testy pokazujące możliwe zastosowania replik oraz sposoby na symulację uszkodzenia danych. Uruchomienie programu bez argumentów dostarcza informacji na temat systemu plików oraz stanu zaawansowania projektu.
 
-Do kodu źródłowego dołączono skrypt \verb|prepare_env.sh|, kompilujący program i przygotowujący środowisko do pracy z przykładowymi konfiguracjami.
+Do kodu źródłowego dołączono skrypt \verb|prepare_env.sh|, przygotowujący środowisko do pracy z przykładowymi konfiguracjami.
 

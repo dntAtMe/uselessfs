@@ -1,6 +1,6 @@
 \chapter{Projekt systemu}
 \thispagestyle{chapterBeginStyle}
-W tym rozdziale przedstawiono scenariusze oraz przypadki użycia systemu. Na końcu znajduje się omówienie i przedstawienie w postaci pseudokodu algorytmów zastosowanych w systemie. 
+W tym rozdziale przedstawiono scenariusze oraz przypadki użycia systemu. Na końcu znajduje się omówienie i przedstawienie w postaci pseudokodu niektórych algorytmów zastosowanych w implementacji. 
 
 \section{Założenia i ograniczenia}
 Na poziomie projektu nałożono ograniczenia na zakres działania omawianego systemu plików. Jedynie dwa rodzaje plików są obsługiwane: Pliki regularne (tekstowe) oraz katalogi. Wynika to z trudności implementacji, na przykład, połączeń symbolicznych, jeśli pliki są podzielone na kilka części. Dodatkowo założono, że na plikach dokonuje się tylko podstawowych operacji odczytu, zapisu, tworzenia oraz usuwania.
@@ -39,14 +39,14 @@ Na poziomie projektu nałożono ograniczenia na zakres działania omawianego sys
             Przebieg wydarzeń & 
             1. Aktor podaje plik do odczytu \newline \newline
             2. System otwiera plik, jesli nie ma do niego uchwytu  \newline \newline
-            3. System odczytuje zadana zawartosc pliku \newline \newline
+            3. System odczytuje zadaną zawartość pliku \newline \newline
             4. System odczytuje nadmiarowe bity \newline \newline
-            5. Na podstawie posiadanych informacji system ocenia integralnosc odczytanych danych \newline \newline
-            6. System informuje aktora o uszkodzonej zawartosci \newline \newline
+            5. Na podstawie posiadanych informacji system ocenia integralność odczytanych danych \newline \newline
+            6. System informuje aktora o uszkodzonej zawartości \newline \newline
             7. Aktor dostaje odczytane dane \\ \hline
             Alternatywny przebieg wydarzeń & 
             Brak \\ \hline
-            Sytuacje wyjątkowe & \textbullet Blad podczas otwierania pliku\newline \newline
+            Sytuacje wyjątkowe & \textbullet Błąd podczas otwierania pliku\newline \newline
             \textbullet Błąd oczytu \newline \newline
             \textbullet Dysk z repliką został odmontowany lub uszkodzony \\ \hline
             Warunki końcowe & System zwrócił aktorowi odczytane dane \\ \hline
@@ -60,20 +60,20 @@ Na poziomie projektu nałożono ograniczenia na zakres działania omawianego sys
                 \hline
             S02.2 & Odczyt pliku w replice korekcyjnej\\ \hline
             Aktor & Użytkownik \\ \hline
-            Warunki wsępne & System plików jest zamontowany, replika wspiera korekcję błędów \\ \hline
+            Warunki wstępne & System plików jest zamontowany, replika wspiera korekcję błędów \\ \hline
             Przebieg wydarzeń & 
             1. Aktor podaje plik do odczytu \newline \newline
-            2. System otwiera plik, jesli nie ma do niego uchwytu  \newline \newline
-            3. System odczytuje zadana zawartosc pliku \newline \newline
+            2. System otwiera plik, jeśli nie ma do niego uchwytu  \newline \newline
+            3. System odczytuje zadaną zawartość pliku \newline \newline
             4. System odczytuje nadmiarowe bity \newline \newline
-            5. Na podstawie posiadanych informacji system ocenia integralnosc odczytanych danych \newline \newline
-            6. System podejmuje probe naprawy znalezionych bledow \newline \newline
-            6. System informuje aktora o nadal uszkodzonej zawartosci \newline \newline
+            5. Na podstawie posiadanych informacji system ocenia integralność odczytanych danych \newline \newline
+            6. System podejmuje próbę naprawy znalezionych błędów \newline \newline
+            6. System informuje aktora o nadal uszkodzonej zawartości \newline \newline
             7. Aktor dostaje odczytane dane \\ \hline
             Alternatywny przebieg wydarzeń & 
-            5. Nie znaleziono bledow\newline \newline
+            5. Nie znaleziono błędów\newline \newline
             6. Aktor dostaje odczytane dane\\ \hline
-            Sytuacje wyjątkowe & \textbullet Blad podczas otwierania pliku\newline \newline
+            Sytuacje wyjątkowe & \textbullet Błąd podczas otwierania pliku\newline \newline
             \textbullet Nieudany odczyt pliku \newline \newline
             \textbullet Dysk z repliką został odmontowany lub uszkodzony \\ \hline
             Warunki końcowe & System zwrócił aktorowi odczytane dane \\ \hline
@@ -93,7 +93,7 @@ Na poziomie projektu nałożono ograniczenia na zakres działania omawianego sys
             1. Aktor podaje plik do odczytu \newline \newline 
             2. System dokonuje wyboru repliki\newline \newline
             3. System przekazuje replice plik do odczytu\newline \newline
-            4. System naprawia bledy przenoszac dane z kolejnej najlepszej repliki \newline \newline
+            4. System naprawia błędy przenosząc dane z kolejnej najlepszej repliki \newline \newline
             5. Aktor dostaje odczytane dane \\ \hline
             Alternatywny przebieg wydarzeń & 
             4. Dane w replice nie zostały naprawione \newline \newline
@@ -118,20 +118,20 @@ Na poziomie projektu nałożono ograniczenia na zakres działania omawianego sys
             Warunki wstępne & System plików jest zamontowany \\ \hline
             Przebieg wydarzeń & 
             1. Aktor podaje plik do odczytu \newline \newline 
-            2. System wybiera najlepsza replike\newline \newline
+            2. System wybiera najlepszą replikę\newline \newline
             3. System wykrywa brak pliku w replice\newline \newline
-            4. System sprawdza obecnosc nieuszkodzonego pliku w pozostalych replikach \newline \newline
-            6. Brakujace dane zostaja zsynchronizowane miedzy replikami\\ \hline
+            4. System sprawdza obecność nieuszkodzonego pliku w pozostałych replikach \newline \newline
+            6. Brakujące dane zostają zsynchronizowane między replikami\\ \hline
             Alternatywny przebieg wydarzeń & 
             \textbullet Brak innych replik \newline \newline
             \textbullet Brak pliku we wszystkich replikach \newline \newline
-            \textbullet Znalezione kopie pliku sa uszkodzone, wystepuje konflikt \\ \hline
+            \textbullet Znalezione kopie pliku są uszkodzone, występuje konflikt \\ \hline
             Sytuacje wyjątkowe &
-            \textbullet Blad podczas otwierania pliku \newline \newline
+            \textbullet Błąd podczas otwierania pliku \newline \newline
             \textbullet Błąd odczytu \\ \hline
-            Warunki końcowe & System zwrócił aktorowi odczytane dane i dane zostaly zsynchronizowane lub aktor zostal poinformowany o braku pliku\\ \hline
+            Warunki końcowe & System zwrócił aktorowi odczytane dane i dane zostały zsynchronizowane lub aktor został poinformowany o braku pliku\\ \hline
         \end{tabular}
-        \caption{Odczyt brakujacego pliku w replice}
+        \caption{Odczyt brakującego pliku w replice}
 \end{table}
 
 \newpage
@@ -168,7 +168,7 @@ Na poziomie projektu nałożono ograniczenia na zakres działania omawianego sys
             Warunki wstępne & System plików jest zamontowany, replika nie wspiera korekcji błędów \\ \hline
             Przebieg wydarzeń & 
             1. Aktor podaje dane do zapisu \newline \newline
-            2. System dopisuje dodatkowe informacje do detekcji bledow \newline \newline
+            2. System dopisuje dodatkowe informacje do detekcji błędow \newline \newline
             2. System zapisuje do repliki \\ \hline
             Alternatywny przebieg wydarzeń &
             3. System nie może zapisać do repliki  \newline \newline
@@ -208,43 +208,52 @@ Na poziomie projektu nałożono ograniczenia na zakres działania omawianego sys
         \centering
         \begin{tabular}{ |l|p{10cm}| }
                 \hline
-            S04.1 & Wybor najlepszej repliki\\ \hline
+            S04.1 & Wybór najlepszej repliki\\ \hline
             Aktor & Użytkownik \\ \hline
             Warunki wstępne & System plików jest zamontowany, przynajmniej jedna replika\\ \hline
             Przebieg wydarzeń & 
-            1. System sprawdza czy sa aktywne repliki \newline \newline 
-            2. System wybiera najlepsza replike z aktywnych \\ \hline
+            1. System sprawdza czy są aktywne repliki \newline \newline 
+            2. System wybiera najlepszą replikę z aktywnych \\ \hline
             Alternatywny przebieg wydarzeń &
             Brak \\ \hline
             Sytuacje wyjątkowe & 
             \textbullet Wszystkie repliki zostały wyłączone \\ \hline
-            Warunki końcowe & System wybral replike i wykonuje operacje aktora\\ \hline
+            Warunki końcowe & System wybrał replikę i wykonuje operacje aktora\\ \hline
         \end{tabular}
-        \caption{Wybor najlepszej repliki} 
+        \caption{Wybór najlepszej repliki} 
 \end{table}
 
 \newpage
 \section{Opis algorytmów}
-
+W implementacji wykorzystano algorytmy odtwarzające bity parzystości i kod Hamminga, jednak najważniejszą funkcją jest podział zadań pomiędzy różnymi replikami. Wiele z nich wykorzystuje wspólne funkcje. Głównym trzonem całego programu jest odczyt oraz zapis plików.
+\\
+\\
+\\
 {\small
 \begin{pseudokod}[H]
 %\SetAlTitleFnt{small}
 \KwIn{Filepath}
 \KwOut{Errorcode, Buffer}
-\ForEach{$replica \in replicas$}{
+    Errorcodes = [0]\;
+\ForEach{$replica, i \in replicas, replicas.size$}{
     \If{$replica = $BLOCK}{
-            Errorcode = BlockReplicaRead(path, replica, Buffer)\;
+        Errorcodes[i] = BlockReplicaRead(path, replica, Buffer)\;
     }
     \If{$replica = $MIRROR}{
-            Errorcode = MirrorReplicaRead(path, replica, Buffer)\;
+        Errorcodes[i] = MirrorReplicaRead(path, replica, Buffer)\;
     }
-    HandleError(Errorcode, replica)\;
+    \If{$Errorcodes[i] = 0$}{
+        break;
+    }
+    HandleError(Errorcodes[i], replica)\;
 }
+    HandleErrors(Errorcodes, i)\;
+Return;
 \caption{Odczyt pliku}\label{alg:1}
 \end{pseudokod}
 }
 
-Algorytm \ref{alg:1} dzieli funkcjonalność systemu w zależności od rodzaju repliki. W ten sposób użytkownik może zaimplementować własny rodzaj repliki, dokonując tylko niewielkich zmian w już istniejącym kodzie. W linii 6 znajduje się obsługa błędów, część wspólna dla wszystkich rodzajów replik.
+Algorytm \ref{alg:1} dzieli funkcjonalność systemu w zależności od rodzaju repliki. W ten sposób użytkownik może zaimplementować własny rodzaj repliki, dokonując tylko niewielkich zmian w już istniejącym kodzie. W linii 9 znajduje się obsługa błędów, część wspólna dla wszystkich rodzajów replik. Określa zachowanie programu w przypadku, kiedy replika ma uszkodzone dane, których nie jest w stanie naprawić, lub jeśli wystąpiły błędy podczas odczytu pliku, takie jak brakujący plik. Jeśli naprawa wymaga repliki, w której odczyt zakończył się sukcesem, takie repliki są naprawianie w linii 10.
 \\
 \\
 \\
@@ -253,15 +262,18 @@ Algorytm \ref{alg:1} dzieli funkcjonalność systemu w zależności od rodzaju r
 %\SetAlTitleFnt{small}
 \KwIn{Filepath, Replica}
 \KwOut{Errorcode, Buffer}
-\ForEach{$block \in blocks$}{
+\ForEach{$block \in Replica.blocks$}{
         Errorcode = ReadFile( $block.path$ + Filepath, Buffer)\;
-        \If{$InterlaceRedundancy(Replica)$}{
+        \If{$ErrorCode$}{
+            Return;
+        }
+        \If{$ShouldInterlaceRedundancy(Replica)$}{
             Checksum = GetChecksum(Buffer)\;
             ParityBuffer = GetOddBytes(Buffer)\;
             Buffer = GetEvenBytes(Buffer)\;
             CalculatedParityBuffer = CalculateParity(Buffer, Replica)\;
             \If{CalculatedParityBuffer != ParityBuffer}{
-                \If{$CorrectErrors(Replica)$}{
+                \If{$ShouldCorrectErrors(Replica)$}{
                     CorrectErrors(Buffer, block)\;
                     CalculateChecksum(block)\;
                     Return\;
@@ -273,40 +285,63 @@ Algorytm \ref{alg:1} dzieli funkcjonalność systemu w zależności od rodzaju r
                 Return;
             }
         }
+    }
     Return;
-}
 \caption{Odczyt pliku z repliki blokowej}\label{alg:2}
 \end{pseudokod}
 }
 
-Algorytm \ref{alg:2} dokonuje odczytu zawartości pliku w replice. W zależności od konfiguracji repliki, wykonywane są różne czynności. Jeśli warunek w linii 3. jest spełniony, w replice jest stosowane przeplatanie danych z redundantnymi bitami. Funkcja w linii 7 oblicza redundantne bity, czyli kod Hamminga lub bit parzystości, w zależności od konfiguracji.
+Algorytm \ref{alg:2} dokonuje odczytu zawartości pliku w replice. W zależności od konfiguracji repliki, wykonywane są różne czynności. Jeśli warunek w linii 3. jest spełniony,to w trakcie próby odczytu z bloku wystąpił błąd. Spełnienie warunku w linii 5. oznacza, że w replice jest stosowane przeplatanie danych z redundantnymi bitami. Funkcja w linii 7 oblicza redundantne bity, czyli kod Hamminga lub bit parzystości, w zależności od konfiguracji. Następnie obliczony kod z odczytanego buforu jest porównywany z kodem dołączonym do odczytywanych danych. Replika podejmuje się próby naprawy błędów, jeśli jest taka możliwość. Jeśli nie znaleziono błędów, to możliwe, że dane zostały uszkodzone, ale użyty kod nie wykrył błędów, więc dla pewności replika sprawdza sumę kontrolną pliku.
+\\
+\\
+\\
+\\
+{\small
+\begin{pseudokod}[H]
+%%\SetAlTitleFnt{small}
+\KwIn{Buffer, Path}
+\KwOut{Errorcode}
+    \ForEach{$replica \in replicas$}{
+        FileHandlers = GetOpenedFileHandlers(replica, Path)\;
+        \If{$replica = $BLOCK}{
+            Errorcode = BlockReplicaWrite(FileHandlers, replica, Buffer)\;
+        }
+        \If{$replica = $MIRROR}{
+            Errorcode = MirrorReplicaRead(FileHandlers, replica, Buffer)\;
+        }
+        HandleError(Errorcode, replica)\;
+   }
+    Return;
+\SetAlTitleFnt{small}
+\caption{Zapis danych do pliku}\label{alg:3}
+\end{pseudokod}
+}
+Algorytm zapisu \ref{alg:3} zachowuje się analogicznie do odczytu w \ref{alg:1}. Iteruje po wszystkich replikach i podejmuje się próby zapisu, naprawiając napotkane błędy. Główna różnica jest taka, że odczytać wystarczy jedną poprawną kopię, aby uzyskać dane z pliku. Zapis musi się odbyć do wszystkich replik.
 \\
 \\
 \\
 {\small
 \begin{pseudokod}[H]
-%\SetAlTitleFnt{small}
-\caption{Zapis danych do pliku}\label{alg:mine}
+%%\SetAlTitleFnt{small}
+\KwIn{Buffer, Replica, FileHandle}
+\KwOut{Errorcode}
+ParityBuffer = CalculateParity(Buffer, Replica)\;
+\ForEach{$block \in Replica.blocks$}{
+    Errorcode = WriteFile(FileHandle, Buffer, ParityBuffer, ShouldInterlaceRedundancy(Replica))\;
+    \If{$Errorcode$}{
+        Return;
+    }
+    Errorcode = AttachRedundancy(FileHandle, ParityBuffer, ShouldAttachRedundancy(Replica))\;
+    \If{$Errorcode$}{
+        Return;
+    }   CalculatedChecksum = CalculateChecksum(block)\;
+    AttachChecksum(FileHandle);
+    
+        }
+    Return;
+\SetAlTitleFnt{small}
+\caption{Zapis danych do pliku w replice blokowej}\label{alg:4}
 \end{pseudokod}
 }
 
-{\small
-\begin{pseudokod}[H]
-%\SetAlTitleFnt{small}
-\caption{Tworzenie nowego pliku}\label{alg:mine}
-\end{pseudokod}
-}
-
-{\small
-\begin{pseudokod}[H]
-%\SetAlTitleFnt{small}
-\caption{Kodowanie Huffmana}\label{alg:mine}
-\end{pseudokod}
-}
-
-{\small
-\begin{pseudokod}[H]
-%\SetAlTitleFnt{small}
-\caption{Obliczanie parzystosci dla danych}\label{alg:mine}
-\end{pseudokod}
-}
+Algorytm \ref{alg:4} zapisuje dane do pliku, przeplatając i dołączając dodatkowe kody zależnie od swoich opcji. Pod koniec dołączana jest suma kontrolna na początek pliku i zapis kończy się sukcesem.

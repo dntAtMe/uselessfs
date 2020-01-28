@@ -6,13 +6,37 @@ W niniejszym rozdziale przedstawiono szczegóły implementacyjne zaproponowanych
 
 System plików implementujący całą funkcjonalność przedstawionego systemu wykorzystuje Filesystem in Userspace. Interfejs FUSE umożliwia tworzenie systemów plików w przestrzeni użytkownika. 
 
-FUSE udostepnia biblioteke $libfuse$, do ktorej wymagany jest program implementujacy zadeklarowane funkcje. Okreslaja zachowanie sie systemu podczas zadan uzytkownika. Taki program moze zostac zamontowany jako system plikow, do ktorego jadro systemu wysyla zadania i przekazuje odpowiedz uzytkownikowi.
+FUSE udostępnia bibliotekę \verb|libfuse|, do której wymagany jest program implementujący zadeklarowane funkcje. Określają zachowanie systemu podczas zadań użytkownika. Taki program może zostać zamontowany jako system plików, do którego jądro systemu wysyła zadania i przekazuje odpowiedź użytkownikowi.
 
 \section{Podział systemu na moduły}
 System plików został zaimplementowany z myślą o dalszym rozwoju. Każda istniejąca replika może być samodzielnie zamontowana jako system plików, ponieważ implementują wszystkie potrzebne do tego funkcje. Dodanie rozwiązań korekcji danych odbywa się przez zaimplementowanie kodera oraz dekodera, a w istniejącym kodzie zminimalizowano ilość potrzebnych zmian. Główny moduł stanowi połączenie między resztą funkcjonalności, takich jak repliki oraz kodowanie dodatkowych informacji. Manipuluje danymi oraz żądaniami użytkownika, przekazując je do odpowiednich modułów. Dzięki temu rozwiązaniu, działanie całego systemu jest niezależne od zastosowanych rozwiązań redundancji.
 
 \section{Omówienie rozwiązań}
-W implementacji wykorzystano dwa rodzaje replik; blokowe i lustrzane. Ich funkcjonalność jest zależna od wybranch flag. Każda replika ma osiem bitów flag, każdy bit stanowi inną opcję. Nie wszystkie opcje są wykorzystywane w obecnej implementacji oraz nie wszystkie kombinacje flag działają poprawnie, należy więc uważnie dobierać opcje. 
+Poniżej zostały opisane zastosowane rozwiązania, aby przedstawić zakres implementacji pracy.
+\subsection {Konfiguracja replik}
+Struktura konfiguracji:\\\\
+\verb|typedef struct replica_config_t| \\
+\verb|{| \\
+\verb|    char   **paths;|\\
+\verb|    size_t paths_size;|\\
+\verb|    enum   replica_status_t status;  (ACTIVE, INACTIVE)|\\
+\verb|    enum   replica_type_t type;      (BLOCK, MIRROR)| \\
+\verb|    int8_t flags;| \\
+\verb|    int8_t priority;|\\
+\verb|}|
+
+W implementacji wykorzystano dwa główne rodzaje replik; blokowe i lustrzane. Ich działanie jest zależne od wybranych opcji działania. Struktura konfiguracji jest wspólna dla każdego rodzaju repliki, opcje ustawiane są przez pojedynczy bajt zawierający osiem flag. Każdy bit odpowiada za inną opcję, rozszerzając możliwości pojedynczej repliki. Zaimplementowana została jedynie część planowanej funkcjonalności, nie wszystkie opcje są wykorzystywane w obecnej implementacji oraz nie wszystkie kombinacje flag działają poprawnie. Niektóre opcje są ignorowane, inne mogą sprowokować niepożądane zachowania omawianego systemu plików. Tak samo obecnie priorytet replik jest ignorowany, a system iteruje po replikach według kolejności dodania, wykluczając repliki nieaktywne. Dokładny opis flag w kolejności od najmniej znaczącego bitu:
+\begin{itemize}
+    \item \verb|FLAG_CORRECT_ERRORS| - Ustawiony bit powoduje, że replika podejmuje się samodzielnej próby korekty znalezionych błędów. Bez tego bitu system jedynie zgłasza znalezienie błędów i naprawia je korzystając z danych w pozostałych replikach.
+    \item \verb|FLAG_USE_HAMMING_PARITY_BIT| - Jeśli replika korzysta z kodu Hamminga, ustawienie tego bitu powoduje rozszerzenie kodu Hamminga o bit parzystości, zwiększając dystans Hamminga kodu. Replika jest w stanie bezbłędnie wykryć i naprawić jeden bit danych więcej.
+    \item \verb|FLAG_USE_CHECKSUM| - Ustawiony bit umożliwia replica korzystanie z sum kontrolnych na początku każdego pliku. Obecnie narzucona jest funkcja MD5. Dzięki sumie kontrolnej system jest w stanie szybko zweryfikować poprawność zawartości pliku.
+    \item \verb|FLAG_ATTACH_REDUNDANCY| - Odpowiada za wybór kodu dołączanego na koniec danych pliku w replikach lustrzanych. Ustawiony bit to kod Hamminga, może być rozszerzony o bit parzystości jeśli odpowiedni bit został ustawiony. W przeciwnym wypadku replika wykorzystuje bity parzystości. W przypadku replik blokowych, bity parzystości są obliczane na całych bajtach. $x_i$ jest wyliczany z $a_i \oplus b_i \oplus \cdots$ dla bloków a, b, $\cdots$, czyli $i$-ty bajt parzystości pozwala odtworzyć $i$-ty bajt danych jednego bloku korzystając z pozostałych bloków, co pozwala odtworzyć wszystkie dane w przypadku uszkodzenia lub utraty pojedynczego bloku. 
+    \item \verb|FLAG_ATTACH_TO_NEW| - Ustawiony bit przenosi kod dołączany na końcu pliku do osobnego pliku w tym samym katalogu. Dzięki sumom kontrolnym na każdym pliku, kod może również być chroniony przed uszkodzeniami. Ustawiony bit \verb|FLAG_ATTACH_REDUNDANCY| na replice blokowej powoduje, że ta opcja jest ignorowana, ponieważ wyliczany blok parzystości jest przenoszony do osobnego katalogu.
+    \item \verb|FLAG_INTERLACE_REDUNDANCY| - Odpowiada za wybór kodu przeplatanego między kolejnymi bajtami danych. Ustawiony bit przeplata kod Hamminga o czterech, lub pięciu, bitach. W przeciwnym wypadku przeplatany jest bit parzystości na każdy bajt danych. Dzięki tej metodzie odczyt pliku jest szybki niezależnie od metody detekcji błędów. Przez to pojedynczy bit parzystości jest zapisywany jako cały bajt, podobnie jak czterobitowy kod Hamminga. 
+    \item \verb|FLAG_RESTRICT_BLOCKS| - Opcja odnosi się do replik blokowych. Pozwala ograniczyć rozmiar pliku w pojedynczym bloku, dzieląc dane na kilka części. Dzięki mniejszym rozmiarom, kod dołączany na koniec plików jest bardziej wiarygodny. Chroniąc mniej danych, zwiększa szansę na poprawne wykrycie lub naprawę błędów. W obecnej implementacji opcja nie działa poprawnie.
+    \item \verb|FLAG_USE_INTERLACING| - Ustawienie tego bitu pozwala na przeplatanie kodu z zapisywanymi danymi. Na bajt zapisywanych danych przypada jeden bajt wyliczonego kodu i w ten sposób zapisywany jest cały segment danych. Suma kontrolna oraz kod dołączany z \verb|FLAG_ATTACH_REDUNDANCY| nie są przeplatane i pozostają bez zmian.
+
+\end{itemize}
 \subsection {Rozkład danych}
 Dla replik lustrzanych oraz blokowych zastosowano rozkład danych przez przeplatanie kolejnych bajtów danych z bajtami kodu. W ten sposób co drugi bajt w pliku stanowi dane, pozwalając na łatwy odczyt pliku. Ponadto, dla replik blokowych ostatni blok może zostać zarezerwowany dla bloków parzystości. Te bloki nie są przeplatane, znajdują się tam jedynie obliczone bity parzystości prawidłowych danych.
 
@@ -29,3 +53,5 @@ Poza próbami odczytu, system również sprawdza integralność plików podczas 
 
 \subsection{Obsługa błędów}
 Jeśli system wykryje błąd podczas działania na replice, taki jak brak pliku, czy uszkodzony plik bez możliwości samonaprawy, system przechodzi do następnej repliki dopóki nie zakończy sukcesem. Nastepnie próbuje naprawić plik w replikach, na których operował, zastapując plik całkowicie poprawną kopią. Jeśli błąd nadal występuje, oznacza replikę jako nieaktywną i kontynuuje działanie. W przypadku, kiedy we wszystkich replikach zakończono działanie niepowodzeniem, system plików zostaje odmontowany.
+
+Jeśli replika nie zawiera danego pliku, sprawdzane są kolejne repliki. Obecność danego pliku w przynajmniej jednej replice powoduje próbę przeniesienia tego pliku do replik, w których został zgłoszony jego brak. Jeśli w żadnej replice nie znaleziono pliku, to system zwraca taką informację.
