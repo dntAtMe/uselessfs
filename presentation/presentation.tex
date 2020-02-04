@@ -19,11 +19,18 @@
 		\frametitle{Cel pracy}
 			System plików zapewniający ochronę danych nawet w przypadku ich uszkodzenia w oparciu o interfejs FUSE.
 	\end{frame}
+	
+	\begin{frame}
+		\frametitle{Technologia}
+            \begin{block}{Filesystem in Userspace}
+			    Moduł jądra systemów Linuxowych umożliwiający tworzenie systemu plików w przestrzeni użytkownika. Moduł FUSE stanowi połączenie między jądrem, a implementowanym systemem.
+            \end{block}
+	\end{frame}
+
 
 	\begin{frame}
 		\frametitle{Założenia pracy}
 		\begin{itemize}
-			\pause
 			\item Wykrywanie niezgodności danych
 				\begin{itemize}
 					\item Sumy kontrolne
@@ -36,9 +43,10 @@
 				\item Kody korekcyjne
 			\end{itemize}
 			\pause
-			\item Obsługa wybranych funkcjonalności systemu plików
+			\item Podstawowa funkcjonalność systemu plików
 			\begin{itemize}
-				\item Pełna funkcjonalność, jeśli jest aktywna replika typu 1.
+				\item Odczyt, zapis, tworzenie, usuwanie plików
+                \item Tworzenie oraz usuwanie katalogów
 			\end{itemize}
 			\pause
 			\item Wygodne użytkowanie
@@ -55,17 +63,17 @@
 
 		\begin{itemize}
 			\item Jak zapewnić redundancję?
+			\pause 
+		    \item Jak wykrywać rozbieżność danych?
+			    \begin{itemize}
+				    \item Podczas operowania na uszkodzonych danych; błędny odczyt, kody korekcyjne, sumy kontrolne 
+			    \end{itemize}
+            \item Jak zapewnić spójność danych?
 			\pause
-			\item Jak zapewnić spójność danych?
-			\begin{itemize}
-				\item W przypadku braku synchronizacji między replikami, wybór poprawnych danych
+            \begin{itemize}
+				\item Synchronizacja między replikami, wybór poprawnych danych
 			\end{itemize}
-			\pause
-			\item Jak wykrywać rozbieżność danych?
-			\begin{itemize}
-				\item Podczas operowania na uszkodzonych danych; błędny odczyt, kody korekcyjne, sumy kontrolne 
-			\end{itemize}
-			\pause
+		    \pause
 			\item Jak naprawiać rozbieżność danych?
 			
 		\end{itemize}
@@ -74,16 +82,13 @@
 	\begin{frame}
 		\frametitle{Rozwiązanie}
 			\begin{block}{Definicja}
-				Replika - jeden z podsystemów zawierający kopię chronionych danych
+				Replika - Katalog zawierający kopię chronionych danych
 			\end{block}
-			\pause
 			\begin{itemize}
-				\item Cały system może być podzielony na warstwy współpracujące ze sobą. 
+				\item System replik oparty na rozwiązaniach architektury RAID
 				\begin{itemize}
-					\item Każda replika to nowa warstwa
+					\item Podział danych w replikach oparty na poziomach RAID-0, RAID-1
 				\end{itemize}
-				\pause
-				\item Podział na warstwy umożliwia rozwiązania typu RAID
 			\end{itemize}
 			
 	\end{frame}
@@ -92,31 +97,31 @@
 \begin{frame}
 	\frametitle{Rozwiązanie}
 	\begin{block}{Definicja}
-            Repliki standardowe zapewniają redundancję, synchronizację oraz podział danych
-	\end{block}
-	\pause
-	\begin{block}{Definicja}
-	        Repliki korecyjne zapewniają korekcję błędów oraz więcej sposobów ich detekcji.
+	    Replika standardowa - detekcja błędów w plikach, jednak w przypadku wykrycia takiego błędu, nie jest w stanie dokonać samodzielnej korekty
     \end{block}
+	\begin{block}{Definicja}
+        Replika korekcyjna - dokonuje zarówno detekcji, jak i korekcji znalezionych błędów
+    \end{block}
+    Jeśli naprawa błędów w replice jest niemożliwa, uszkodzone dane są zastępowane kopiami z pozostałych replik.
 \end{frame}
 
 \begin{frame}
-        \frametitle{Replika blokowa (BR)}
+        \frametitle{Replika blokowa}
 		\begin{columns}
 		\column{0.7\textwidth}
 		\begin{block}{Redundancja}
-			Standardowa replika blokowa nie zapewnia ochrony danych, jedynie ich rozkład w warstwie
+			Standardowa replika blokowa rozkłada pliki na kilka mniejszych części, do każdego dołączając informacje potrzebne do detekcji błędów
 		\end{block}
 		\begin{itemize}
-			\item Podstawa do pozostałych replik blokowych
+			\item Podstawa repliki korekcyjnej 
 			\item Dwa podziały:
 			\begin{itemize}
 				\item Bloki stałej długości
 				\item Bloki zmiennej długości
 			\end{itemize}
 			\item Operacje read, write, open, close, stat
-
 			\item Podział danych niewidoczny dla użytkownika
+			\item Podział na bloki umożliwia naprawę tylko uszkodzonych części danych
 		\end{itemize}
 		\column{0.3\textwidth}
 		\begin{figure}
@@ -126,49 +131,21 @@
 \end{frame}
 
 \begin{frame}
-    \frametitle{BR o stałej ilości bloków}
-    \begin{figure}[h!]
-            \centering
-            \includegraphics[scale=0.6]{BR-1.png}
-            \caption{Replika blokowa na trzech katalogach}
-            \label{fig:br1}
-    \end{figure}
-\end{frame}
-
-\begin{frame}
-    \frametitle{BR o zmiennej ilości bloków}
-    \begin{figure}[h!]
-            \centering
-            \includegraphics[scale=0.6]{BR-2.png}
-            \caption{Replika blokowa na trzech katalogach}
-            \label{fig:br2}
-    \end{figure}
-\end{frame}
-
-
-\begin{frame}
-        \frametitle{Replika lustrzana (MR)}
+        \frametitle{Replika lustrzana}
 	\begin{columns}
-		\column{1.0\textwidth}
+		\column{0.6\textwidth}
 		\begin{block}{Redundancja}
-                Standardowa MR tworzy odbicie lustrzane danych, zapewnia funkcjonalność równą systemu nadrzędnego
+                Standardowa replika lustrzana zapisuje pliki w całości, dołączając informacje potrzebne do detekcji błędów.
 		\end{block}
 		\begin{itemize}
-			\item Wysoki koszt pamięci
-			\item Pełna funkcjonalność systemu plików
-			\item Uszkodzone dane zastąpione danymi z odbicia
+			\item Podstawa repliki korekcyjnej
+			\item W przypadku naprawy zmianie ulega cały plik
 		\end{itemize}
-	\end{columns}
-\end{frame}
-	
-
-\begin{frame}
-        \frametitle{Replika lustrzana (MR)}
-	\begin{columns}
-		\column{1.0\textwidth}
+        \column{0.4\textwidth}
 		\begin{figure}
-			\includegraphics[]{raid-1.png}
+			\includegraphics[scale=0.4]{raid-1.png}
 		\end{figure}
+	
 	\end{columns}
 \end{frame}
 	
@@ -182,23 +159,23 @@
 		\begin{itemize}
 			\item Kod Hamminga 
 			\item Bloki parzystości
-			\item Kod Reeda-Solomona
 		\end{itemize}
+
 	\end{columns}
 \end{frame}
 			
 	\begin{frame}
 		\frametitle{Przykłady}
 		\begin{block}{Przykład}
-			Dysk, na którym zamontowana była jedna z replik lustrzanych dane został odłączony. 
+			Dysk, na którym znajdowała się jedna z replik, został odmontowany. 
 		\end{block}
 		\pause
 		\begin{block}{Przykład}
-			Wystąpił błąd poczas zapisu do jednej z replik blokowych.
+			Wystąpił błąd podczas zapisu do jednej z replik blokowych.
 		\end{block}
 		\pause
 		\begin{block}{Przykład}
-			Obrócone bity na danych w jednej z replik.
+			Odwrócone bity na danych w w replice.
 		\end{block}
 	\end{frame}
 	
@@ -206,14 +183,19 @@
 	\begin{frame}
 		\frametitle{Ulepszenia}
 		\begin{itemize}
-			\item Kolejne warstwy
+			\item Wprowadzenie kolejnych rodzajów replik
+            \item Wprowadzenie kolejnych metod detekcji i korekcji błędów
 			\item Usprawnienie działania
 			\begin{itemize}
 				\item Wykorzystanie wywołań niskiego poziomu FUSE
-				\item Optymalizacja zastosowanych operacji
+				\item Optymalizacja obecnych rozwiązań 
 			\end{itemize}
-			\item Implementacja całej funkcjonalności systemu plików dla pozostałych warstw
-			\item Pełna niewidoczność działania systemu dla użytkownika
+			\item Implementacja całej funkcjonalności systemu plików
+                    \begin{itemize}
+                        \item Obsługa pozostałych sygnałów biblioteki FUSE
+                        \item Obsługa pozostałych typów plików
+                    \end{itemize}
+			\item Działanie systemu całkowicie niezależne od użytkownika
 		\end{itemize}
 	\end{frame}
 
