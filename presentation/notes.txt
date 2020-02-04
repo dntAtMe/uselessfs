@@ -1,0 +1,21 @@
+Nazywam się Kacper Pieniążek i temat mojej pracy brzmi "Redundantny system plików". Celem pracy było zaprojektowanie i zaimplementowanie systemu plików chroniącego dane w przypadku częściowego uszkodzenia.
+Aby skupić się na omawianej funkcjonalności, do implementacji wykorzystano FUSE, Filesystem in Userspace. Jest to moduł jądra Linuxowego, który pozwala na pisanie systemu plików w przestrzeni użytkownika. Dzięki temu system plików nie musi być pisany od nowa, czyli od poziomu jądra, tylko może stanowić nakładkę dodatkowych funkcji jako wirtualny system plików. Założenia odnośnie końcowej pracy są następujące: 
+System jest w stanie wykryć nieprawidłowości w danych (poprzez sumy kontrolny oraz kody korekcyjne), czyli kody korekcyjne nie zawsze są wykorzystywane do naprawy. System jest w stanie odzyskiwać utracone dane dzięki kopiom zapisanych w pozostałych replikach oraz jest w stanie naprawiać uszkodzone dane dzięki nadmiernej informacji zapisanej wraz z danymi
+System obsługuje podstawowe zachowania systemu plików, takie jak tworzenie oraz usuwanie plików, odczyt oraz zapis do plików. System obsługuje jedynie pliki regularne oraz katalogi.
+System powinien być prosty w obsłudze, narzut dodatkowych obowiązków wobec użytkownka powinien być jak najmniejszy. Działanie systemu powinno być niewidoczne dla użytkownika.
+
+Stworzenie takiego systemu wymaga rozwiązania następujących problemów:
+W jaki sposób zapewnić redundancję? To znaczy, jakie informacje dopisać oraz w jaki sposób je przechowywać.
+Jak zapewnic? Dopisywane do jednego pliku wraz z danymi
+Wykrywanie rozbieżności danych odbywa się podczas próby otwierania pliku, próby odczytu lub sprawdzenia pliku, wtedy też podejmuje się próby naprawy. W przypadku wystąpienia błędu, podejmowana jest próba naprawy lub odzyskania brakującego pliku.
+Spójność między replikami jest zachowana przy każdym zapisie. W przypadku znalezienia błędu w pliku, dane są synchronizowane z inną repliką, gdzie są prawidłowe.
+
+W celu zapewnienia kopii danych, powstało pojęcie repliki. Jest to katalog zawierający kopię chronionych danych od samego korzenia zamontowanego systemu. Repliki można podzielić ze względu na podział przechowywanych danych. Opierają się na wybranych poziomach architektury RAID, poziom 0 i poziom 1.
+
+Replika standardowa zapewnia dodatkowe informacje pozwalające na wykrywanie błędów, jednak nie jest w stanie naprawić się bez kopiowania danych z pozostałych replik,
+Z kolei replika korekcyjna przez kopiowaniem podejmuje próbę samodzielnej naprawy dzięki, na przykład,  kodom korekcyjnym.
+
+Pierwszą repliką standardową jest replika lustrzana stworzona na podobieństwo pierwszego poziomu rozwiązania RAID. System zapisuje do repliki dane w całości, dopisując jedynie dodatkowe informacje w tym samym pliku. W przypadku naprawy zmianie ulega cały plik.
+
+Drugą repliką standardową jest replika blokowa. Tak jak poziom 0 rozwiązania RAID, dzieli pliki na mniejsze części, rozkładając je w osobnych katalogach i dopisując dodatkowe informacje do każdego ze stworzonych plików. Bloki mogą mieć różne metody podziału danych oraz są niewidoczne przez użytkownika. Kazdy blok ma zapisane redundantne informacje i mozna stwierdzic jego prawidlowosc niezaleznie od innych blokow
+Można wymieniać jedynie uszkodzone bloki, a bloki mogą być rozłożone w katalogach na różnych nośnikach danych, powiększając dostępną przestrzeń. W przypadku braku części bloków, replika podejmuje się odzyskania ich przez pozostałe repliki.
