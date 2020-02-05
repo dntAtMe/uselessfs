@@ -51,7 +51,7 @@
 			\pause
 			\item Wygodne użytkowanie
 			\begin{itemize}
-				\item Podział i duplikacja danych wystarczająco transparentna dla użytkownika
+				\item Podział i duplikacja danych wystarczająco niewidoczne dla użytkownika
 				\item Rozwiązywanie konfliktów w przypadku niezgodności danych
 				\item Dostosowanie systemu do własnych potrzeb
 			\end{itemize}
@@ -63,19 +63,18 @@
 
 		\begin{itemize}
 			\item Jak zapewnić redundancję?
-			\pause 
-		    \item Jak wykrywać rozbieżność danych?
+		    \pause
+            \item Jak wykrywać rozbieżność danych?
 			    \begin{itemize}
 				    \item Podczas operowania na uszkodzonych danych; błędny odczyt, kody korekcyjne, sumy kontrolne 
 			    \end{itemize}
-            \item Jak zapewnić spójność danych?
+            \item Jak naprawiać rozbieżność danych?
 			\pause
+            \item Jak zapewnić spójność danych?
             \begin{itemize}
 				\item Synchronizacja między replikami, wybór poprawnych danych
 			\end{itemize}
-		    \pause
-			\item Jak naprawiać rozbieżność danych?
-			
+		    
 		\end{itemize}
 	\end{frame}
 		
@@ -106,31 +105,6 @@
 \end{frame}
 
 \begin{frame}
-        \frametitle{Replika blokowa}
-		\begin{columns}
-		\column{0.7\textwidth}
-		\begin{block}{Redundancja}
-			Standardowa replika blokowa rozkłada pliki na kilka mniejszych części, do każdego dołączając informacje potrzebne do detekcji błędów
-		\end{block}
-		\begin{itemize}
-			\item Podstawa repliki korekcyjnej 
-			\item Dwa podziały:
-			\begin{itemize}
-				\item Bloki stałej długości
-				\item Bloki zmiennej długości
-			\end{itemize}
-			\item Operacje read, write, open, close, stat
-			\item Podział danych niewidoczny dla użytkownika
-			\item Podział na bloki umożliwia naprawę tylko uszkodzonych części danych
-		\end{itemize}
-		\column{0.3\textwidth}
-		\begin{figure}
-			\includegraphics[scale=0.5]{raid-0.png}
-		\end{figure}
-		\end{columns}
-\end{frame}
-
-\begin{frame}
         \frametitle{Replika lustrzana}
 	\begin{columns}
 		\column{0.6\textwidth}
@@ -149,6 +123,32 @@
 	\end{columns}
 \end{frame}
 	
+
+\begin{frame}
+        \frametitle{Replika blokowa}
+		\begin{columns}
+		\column{0.7\textwidth}
+		\begin{block}{Redundancja}
+			Standardowa replika blokowa rozkłada pliki na kilka mniejszych części, do każdego dołączając informacje potrzebne do detekcji błędów
+		\end{block}
+		\begin{itemize}
+			\item Podstawa repliki korekcyjnej 
+			\item Dwa podziały:
+			\begin{itemize}
+				\item Bloki stałej długości
+				\item Bloki zmiennej długości
+			\end{itemize}
+			\item Podział danych niewidoczny dla użytkownika
+			\item Podział na bloki umożliwia naprawę tylko uszkodzonych części danych
+			\item Możliwe powiększenie dostępnej przestrzeni 
+		\end{itemize}
+		\column{0.3\textwidth}
+		\begin{figure}
+			\includegraphics[scale=0.5]{raid-0.png}
+		\end{figure}
+		\end{columns}
+\end{frame}
+
 \begin{frame}
         \frametitle{Repliki korekcyjne }
 	\begin{columns}
